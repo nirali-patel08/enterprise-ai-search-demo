@@ -1,0 +1,30 @@
+.search-builder-step {
+  min-height: 420px;
+}
+
+.connector-card--selected {
+  border-color: rgb(249 115 22);
+  background: rgba(249, 115, 22, 0.04);
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.15);
+}
+
+.agent-card--selected {
+  border-color: rgb(249 115 22);
+  background: rgba(249, 115, 22, 0.04);
+}
+
+.chat-bubble-user {
+  background: linear-gradient(182deg, #34300b -46.46%, #000 98.39%);
+  color: #fff;
+}
+
+.chat-bubble-assistant {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+.example-question {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.2) 100%),
+    linear-gradient(330.45deg, #ededed 52.87%, #e3d693 97.2%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}

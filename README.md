@@ -1,10 +1,21 @@
 # Enterprise AI Search Builder — Demo
 
-Interactive demo of the Enterprise AI Search Builder wizard with sample data.
+Interactive demo aligned with the **weave-agent-ui** design system (MUI v9, Tailwind v4, Zustand, React Query).
 
 ## Live Demo
 
-After deployment: https://nirali-patel08.github.io/enterprise-ai-search-demo/
+https://nirali-patel08.github.io/enterprise-ai-search-demo/
+
+## Stack
+
+- React 19 + TypeScript + Vite
+- Material UI v9 + Emotion
+- Tailwind CSS v4 + clsx + tailwind-merge
+- React Router v7
+- TanStack React Query v5
+- Zustand (wizard state)
+- Framer Motion (step transitions)
+- Iconify + MUI Icons
 
 ## Local Development
 
@@ -13,13 +24,7 @@ npm install
 npm run dev
 ```
 
-## Build
-
-```bash
-npm run build
-```
-
-## Deploy to GitHub Pages
+## Deploy
 
 ```bash
 GITHUB_PAGES=true npm run build
