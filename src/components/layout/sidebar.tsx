@@ -18,17 +18,17 @@ export interface SidebarItem {
 }
 
 const NAV_ITEMS: SidebarItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: <DashboardRoundedIcon sx={{ fontSize: 18 }} /> },
   { label: "AI Search Builder", href: "/builder", icon: <SearchRoundedIcon sx={{ fontSize: 18 }} /> },
   { label: "AI Chat", href: "/chat", icon: <MessageRoundedIcon sx={{ fontSize: 18 }} /> },
-  { label: "Connectors", href: "/builder", icon: <HubRoundedIcon sx={{ fontSize: 18 }} /> },
-  { label: "Agent Marketplace", href: "/builder", icon: <SmartToyRoundedIcon sx={{ fontSize: 18 }} /> },
-  { label: "Analytics", href: "/builder", icon: <AnalyticsRoundedIcon sx={{ fontSize: 18 }} /> },
-  { label: "Governance", href: "/builder", icon: <ShieldRoundedIcon sx={{ fontSize: 18 }} /> },
+  { label: "Connectors", href: "/connectors", icon: <HubRoundedIcon sx={{ fontSize: 18 }} /> },
+  { label: "Agent Marketplace", href: "/agents", icon: <SmartToyRoundedIcon sx={{ fontSize: 18 }} /> },
+  { label: "Analytics", href: "/analytics", icon: <AnalyticsRoundedIcon sx={{ fontSize: 18 }} /> },
+  { label: "Governance", href: "/governance", icon: <ShieldRoundedIcon sx={{ fontSize: 18 }} /> },
 ];
 
 const BOTTOM_ITEMS: SidebarItem[] = [
-  { label: "Dashboard", href: "/builder", icon: <DashboardRoundedIcon sx={{ fontSize: 18 }} /> },
-  { label: "Admin", href: "/builder", icon: <SettingsRoundedIcon sx={{ fontSize: 18 }} /> },
+  { label: "Admin", href: "/admin", icon: <SettingsRoundedIcon sx={{ fontSize: 18 }} /> },
 ];
 
 interface SidebarProps {
@@ -45,37 +45,33 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => (
     )}
   >
     <div className={cn("flex h-16 shrink-0 items-center border-b border-white/10", collapsed ? "justify-center px-0" : "px-5")}>
-      {collapsed ? (
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500">
+      <Link to="/dashboard" className={cn("flex items-center", collapsed ? "justify-center" : "gap-2.5")}>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500">
           <span className="text-sm font-bold text-white">EA</span>
         </div>
-      ) : (
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500">
-            <span className="text-sm font-bold text-white">EA</span>
-          </div>
+        {!collapsed && (
           <div>
             <p className="text-sm font-bold leading-none text-white">Enterprise AI</p>
             <p className="mt-0.5 text-xs text-white/50">Search Platform</p>
           </div>
-        </div>
-      )}
+        )}
+      </Link>
     </div>
 
     <div className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
       {NAV_ITEMS.map((item) => (
-        <NavItem key={item.label} item={item} collapsed={collapsed} />
+        <NavItem key={item.href} item={item} collapsed={collapsed} />
       ))}
     </div>
 
     <div className="flex flex-col gap-1 border-t border-white/10 px-3 py-4">
       {BOTTOM_ITEMS.map((item) => (
-        <NavItem key={item.label} item={item} collapsed={collapsed} />
+        <NavItem key={item.href} item={item} collapsed={collapsed} />
       ))}
       {!collapsed && (
         <div className="mt-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3">
           <p className="text-[11px] font-semibold uppercase text-amber-200">Demo mode</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-white/60">Sample data only. No live connections.</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/60">Sample data only.</p>
         </div>
       )}
     </div>
@@ -95,10 +91,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => (
 
 const NavItem = ({ item, collapsed }: { item: SidebarItem; collapsed: boolean }) => {
   const { pathname } = useLocation();
-  const isActive = pathname === item.href || (item.href !== "/builder" && pathname.startsWith(`${item.href}/`));
-  const isBuilderActive = item.href === "/builder" && pathname === "/builder";
-  const isChatActive = item.href === "/chat" && pathname === "/chat";
-  const active = item.label === "AI Search Builder" ? isBuilderActive : item.label === "AI Chat" ? isChatActive : isActive;
+  const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
 
   return (
     <Link

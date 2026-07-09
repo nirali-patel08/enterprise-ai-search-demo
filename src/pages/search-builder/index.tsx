@@ -6,40 +6,45 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { WizardStepper } from "./components/wizard-stepper";
 import { useBuilderStore } from "@/store/builder-store";
-import { StepDataSources } from "./components/steps/step-data-sources";
-import { StepConfigureIndex } from "./components/steps/step-configure-index";
-import { StepPipeline } from "./components/steps/step-pipeline";
+import { StepDeployment } from "./components/steps/step-deployment";
+import { StepConnectors } from "./components/steps/step-connectors";
+import { StepIndexing } from "./components/steps/step-indexing";
 import { StepAgents } from "./components/steps/step-agents";
+import { StepOrchestration } from "./components/steps/step-orchestration";
 import { StepTest } from "./components/steps/step-test";
 import { StepDeploy } from "./components/steps/step-deploy";
-import { StepChat } from "./components/steps/step-chat";
 import "./search-builder.scss";
+
+const MAX_STEP = 7;
 
 export default function SearchBuilderPage() {
   const step = useBuilderStore((s) => s.step);
   const prevStep = useBuilderStore((s) => s.prevStep);
   const nextStep = useBuilderStore((s) => s.nextStep);
-  const connectors = useBuilderStore((s) => s.connectors);
-  const validated = useBuilderStore((s) => s.validated);
-  const agents = useBuilderStore((s) => s.agents);
+  const savedConnectors = useBuilderStore((s) => s.savedConnectors);
+  const indexingSelection = useBuilderStore((s) => s.indexingSelection);
+  const selectedAgentIds = useBuilderStore((s) => s.selectedAgentIds);
+  const orchestrationId = useBuilderStore((s) => s.orchestrationId);
   const testRan = useBuilderStore((s) => s.testRan);
-  const channels = useBuilderStore((s) => s.channels);
+  const indexProgress = useBuilderStore((s) => s.indexProgress);
 
-  const validatedCount = connectors.filter((id) => validated[id]).length;
   const canContinue =
-    (step === 1 && connectors.length > 0) ||
-    (step === 2 && validatedCount === connectors.length) ||
-    (step === 3) ||
-    (step === 4 && agents.includes("orchestrator")) ||
-    (step === 5 && testRan) ||
-    (step === 6 && channels.length > 0) ||
+    step === 1 ||
+    (step === 2 && savedConnectors.some((c) => c.validated)) ||
+    (step === 3 &&
+      indexingSelection.length > 0 &&
+      (indexProgress === 100 ||
+        savedConnectors.some((c) => indexingSelection.includes(c.id) && c.status === "indexed"))) ||
+    (step === 4 && selectedAgentIds.length > 0) ||
+    (step === 5 && !!orchestrationId) ||
+    (step === 6 && testRan) ||
     step === 7;
 
   return (
     <PageShell>
       <PageHeader
         title="Enterprise AI Search Builder"
-        description="Connect sources, index content, configure agents, test, and publish to Web, Teams, Copilot or APIs."
+        description="Cloud or open source deployment — connect sources, index, add agents, orchestrate, test, and deploy."
       />
       <WizardStepper />
 
@@ -52,13 +57,13 @@ export default function SearchBuilderPage() {
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
           className="search-builder-step mt-6"
         >
-          {step === 1 && <StepDataSources />}
-          {step === 2 && <StepConfigureIndex />}
-          {step === 3 && <StepPipeline />}
+          {step === 1 && <StepDeployment />}
+          {step === 2 && <StepConnectors />}
+          {step === 3 && <StepIndexing />}
           {step === 4 && <StepAgents />}
-          {step === 5 && <StepTest />}
-          {step === 6 && <StepDeploy />}
-          {step === 7 && <StepChat />}
+          {step === 5 && <StepOrchestration />}
+          {step === 6 && <StepTest />}
+          {step === 7 && <StepDeploy />}
         </motion.div>
       </AnimatePresence>
 
@@ -67,8 +72,8 @@ export default function SearchBuilderPage() {
           <ChevronLeftRoundedIcon sx={{ fontSize: 18 }} />
           Previous
         </Button>
-        <span className="text-sm text-gray-500">Step {step} of 7</span>
-        <Button variant="primary" disabled={step === 7 || !canContinue} onClick={nextStep}>
+        <span className="text-sm text-gray-500">Step {step} of {MAX_STEP}</span>
+        <Button variant="primary" disabled={step === MAX_STEP || !canContinue} onClick={nextStep}>
           Continue
           <ChevronRightRoundedIcon sx={{ fontSize: 18 }} />
         </Button>

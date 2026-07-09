@@ -28,7 +28,7 @@ export const StepTest = () => {
   return (
     <section className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">5. Test Enterprise Search</h2>
+        <h2 className="text-lg font-semibold text-gray-900">6. Test Enterprise Search</h2>
         <p className="mt-1 text-sm text-gray-500">Validate retrieval, citations, agent routing, and response quality before deployment.</p>
       </div>
 

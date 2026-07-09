@@ -1,14 +1,19 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ACTION_MODES } from "@/data/sample";
+import type { ACTION_MODES, DeploymentType, SavedConnector } from "@/data/sample";
+import { SAMPLE_SAVED_CONNECTORS } from "@/data/sample";
+
+const MAX_STEP = 7;
 
 export interface BuilderStore {
   step: number;
-  connectors: string[];
+  deploymentType: DeploymentType;
+  savedConnectors: SavedConnector[];
+  activeConnectorTypeId: string;
+  indexingSelection: string[];
+  selectedAgentIds: string[];
+  orchestrationId: string;
   channels: string[];
-  agents: string[];
-  activeConnector: string;
-  validated: Record<string, boolean>;
   indexProgress: number;
   indexing: boolean;
   query: string;
@@ -22,11 +27,15 @@ export interface BuilderStore {
   setStep: (step: number) => void;
   nextStep: () => void;
   prevStep: () => void;
-  toggleConnector: (id: string) => void;
-  toggleChannel: (id: string) => void;
+  setDeploymentType: (type: DeploymentType) => void;
+  setActiveConnectorTypeId: (id: string) => void;
+  saveConnector: (connector: SavedConnector) => void;
+  setIndexingSelection: (ids: string[]) => void;
+  toggleIndexingSelection: (id: string) => void;
+  updateConnectorStatus: (id: string, status: SavedConnector["status"], documentCount?: number) => void;
   toggleAgent: (id: string) => void;
-  setActiveConnector: (id: string) => void;
-  setValidated: (id: string, value: boolean) => void;
+  setOrchestrationId: (id: string) => void;
+  toggleChannel: (id: string) => void;
   setIndexing: (value: boolean) => void;
   setIndexProgress: (value: number) => void;
   setQuery: (value: string) => void;
@@ -43,12 +52,14 @@ export const useBuilderStore = create<BuilderStore>()(
   persist(
     (set, get) => ({
       step: 1,
-      connectors: ["sharepoint", "azure-blob", "s3"],
+      deploymentType: "cloud",
+      savedConnectors: SAMPLE_SAVED_CONNECTORS,
+      activeConnectorTypeId: "sharepoint",
+      indexingSelection: ["conn-1"],
+      selectedAgentIds: ["sharepoint-agent", "engineering-drawing-agent", "document-router-agent"],
+      orchestrationId: "foundry-workflow",
       channels: ["web", "teams"],
-      agents: ["orchestrator", "contract", "po", "invoice"],
-      activeConnector: "sharepoint",
-      validated: { sharepoint: true },
-      indexProgress: 100,
+      indexProgress: 72,
       indexing: false,
       query: "Show contracts, POs and invoices related to ABC Vendor and identify mismatch.",
       actionMode: "Search",
@@ -64,26 +75,42 @@ export const useBuilderStore = create<BuilderStore>()(
       citations: true,
       teamsCompat: true,
       setStep: (step) => set({ step }),
-      nextStep: () => set({ step: Math.min(7, get().step + 1) }),
+      nextStep: () => set({ step: Math.min(MAX_STEP, get().step + 1) }),
       prevStep: () => set({ step: Math.max(1, get().step - 1) }),
-      toggleConnector: (id) =>
+      setDeploymentType: (deploymentType) => set({ deploymentType }),
+      setActiveConnectorTypeId: (activeConnectorTypeId) => set({ activeConnectorTypeId }),
+      saveConnector: (connector) =>
+        set((s) => {
+          const exists = s.savedConnectors.find((c) => c.id === connector.id);
+          if (exists) {
+            return { savedConnectors: s.savedConnectors.map((c) => (c.id === connector.id ? connector : c)) };
+          }
+          return { savedConnectors: [...s.savedConnectors, connector] };
+        }),
+      setIndexingSelection: (indexingSelection) => set({ indexingSelection }),
+      toggleIndexingSelection: (id) =>
         set((s) => ({
-          connectors: s.connectors.includes(id)
-            ? s.connectors.filter((x) => x !== id)
-            : [...s.connectors, id],
+          indexingSelection: s.indexingSelection.includes(id)
+            ? s.indexingSelection.filter((x) => x !== id)
+            : [...s.indexingSelection, id],
         })),
+      updateConnectorStatus: (id, status, documentCount) =>
+        set((s) => ({
+          savedConnectors: s.savedConnectors.map((c) =>
+            c.id === id ? { ...c, status, documentCount: documentCount ?? c.documentCount } : c,
+          ),
+        })),
+      toggleAgent: (id) =>
+        set((s) => ({
+          selectedAgentIds: s.selectedAgentIds.includes(id)
+            ? s.selectedAgentIds.filter((x) => x !== id)
+            : [...s.selectedAgentIds, id],
+        })),
+      setOrchestrationId: (orchestrationId) => set({ orchestrationId }),
       toggleChannel: (id) =>
         set((s) => ({
           channels: s.channels.includes(id) ? s.channels.filter((x) => x !== id) : [...s.channels, id],
         })),
-      toggleAgent: (id) => {
-        if (id === "orchestrator") return;
-        set((s) => ({
-          agents: s.agents.includes(id) ? s.agents.filter((x) => x !== id) : [...s.agents, id],
-        }));
-      },
-      setActiveConnector: (id) => set({ activeConnector: id }),
-      setValidated: (id, value) => set((s) => ({ validated: { ...s.validated, [id]: value } })),
       setIndexing: (indexing) => set({ indexing }),
       setIndexProgress: (indexProgress) => set({ indexProgress }),
       setQuery: (query) => set({ query }),
@@ -96,13 +123,15 @@ export const useBuilderStore = create<BuilderStore>()(
       setTeamsCompat: (teamsCompat) => set({ teamsCompat }),
     }),
     {
-      name: "enterprise-search-builder",
+      name: "enterprise-search-builder-v2",
       partialize: (state) => ({
         step: state.step,
-        connectors: state.connectors,
+        deploymentType: state.deploymentType,
+        savedConnectors: state.savedConnectors,
+        indexingSelection: state.indexingSelection,
+        selectedAgentIds: state.selectedAgentIds,
+        orchestrationId: state.orchestrationId,
         channels: state.channels,
-        agents: state.agents,
-        validated: state.validated,
         indexProgress: state.indexProgress,
         testRan: state.testRan,
         deployed: state.deployed,

@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import RocketLaunchRoundedIcon from "@mui/icons-material/RocketLaunchRounded";
@@ -24,29 +25,28 @@ const channelIcons: Record<string, React.ReactNode> = {
 
 export const StepDeploy = () => {
   const channels = useBuilderStore((s) => s.channels);
-  const connectors = useBuilderStore((s) => s.connectors);
-  const validated = useBuilderStore((s) => s.validated);
-  const agents = useBuilderStore((s) => s.agents);
+  const savedConnectors = useBuilderStore((s) => s.savedConnectors);
+  const selectedAgentIds = useBuilderStore((s) => s.selectedAgentIds);
+  const orchestrationId = useBuilderStore((s) => s.orchestrationId);
   const testRan = useBuilderStore((s) => s.testRan);
   const deployed = useBuilderStore((s) => s.deployed);
   const toggleChannel = useBuilderStore((s) => s.toggleChannel);
   const setDeployed = useBuilderStore((s) => s.setDeployed);
-  const setStep = useBuilderStore((s) => s.setStep);
 
-  const validatedCount = connectors.filter((id) => validated[id]).length;
+  const indexedCount = savedConnectors.filter((c) => c.status === "indexed").length;
 
   const deployMutation = useMutation({
     mutationFn: () => searchBuilderApi.deploy(channels),
     onSuccess: () => {
       setDeployed(true);
       toast.success(`Published to ${channels.length} channel(s)`);
-      setStep(7);
     },
   });
 
   const checklist = [
-    { ok: validatedCount === connectors.length, text: "All connectors validated and indexed" },
-    { ok: agents.length > 0, text: "At least one agent enabled" },
+    { ok: indexedCount > 0, text: "At least one source indexed" },
+    { ok: selectedAgentIds.length > 0, text: "At least one agent selected" },
+    { ok: !!orchestrationId, text: "Multi-agent orchestration configured" },
     { ok: channels.length > 0, text: "At least one access channel enabled" },
     { ok: testRan, text: "Admin test query passed" },
   ];
@@ -54,7 +54,7 @@ export const StepDeploy = () => {
   return (
     <section className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">6. Deploy to Access Channels</h2>
+        <h2 className="text-lg font-semibold text-gray-900">7. Deploy to Access Channels</h2>
         <p className="mt-1 text-sm text-gray-500">Publish the configured search experience to end-user channels.</p>
       </div>
 
@@ -91,16 +91,22 @@ export const StepDeploy = () => {
             </li>
           ))}
         </ul>
-        <Button
-          variant="primary"
-          className="mt-5"
-          loading={deployMutation.isPending}
-          disabled={!testRan || channels.length === 0 || deployed}
-          onClick={() => deployMutation.mutate()}
-        >
-          <RocketLaunchRoundedIcon sx={{ fontSize: 18 }} />
-          {deployed ? "Published" : `Publish to ${channels.length} channel(s)`}
-        </Button>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button
+            variant="primary"
+            loading={deployMutation.isPending}
+            disabled={!testRan || channels.length === 0 || deployed}
+            onClick={() => deployMutation.mutate()}
+          >
+            <RocketLaunchRoundedIcon sx={{ fontSize: 18 }} />
+            {deployed ? "Published" : `Publish to ${channels.length} channel(s)`}
+          </Button>
+          {deployed && (
+            <Link to="/chat">
+              <Button variant="secondary">Open AI Chat</Button>
+            </Link>
+          )}
+        </div>
       </SectionCard>
     </section>
   );
