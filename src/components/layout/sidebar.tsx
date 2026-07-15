@@ -85,10 +85,10 @@ export const Sidebar = ({ pinned = false, onTogglePin, mobile = false, onNavigat
         {expanded ? (
           <>
             <Link to="/dashboard" className="flex min-w-0 items-center gap-2.5" onClick={handleItemClick}>
-              <BrandMark size={30} className="shrink-0" />
+              <BrandMark size={38} className="shrink-0" />
               <div className="min-w-0 whitespace-nowrap">
                 <p className="truncate text-sm font-bold leading-none text-white">Enterprise AI</p>
-                <p className="mt-0.5 truncate text-xs text-sidebar-text-dim">Search Platform</p>
+                <p className="mt-0.5 truncate text-xs font-medium text-accent-orange">Search Platform</p>
               </div>
             </Link>
             {!mobile && onTogglePin && (
@@ -126,7 +126,7 @@ export const Sidebar = ({ pinned = false, onTogglePin, mobile = false, onNavigat
             className="flex h-9 w-9 items-center justify-center"
             onClick={handleItemClick}
           >
-            <BrandMark size={30} />
+            <BrandMark size={38} />
           </Link>
         )}
       </div>
