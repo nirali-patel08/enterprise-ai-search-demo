@@ -18,26 +18,28 @@ export const WizardStepper = () => {
               key={s.id}
               type="button"
               onClick={() => setStep(s.id)}
+              aria-current={active ? "step" : undefined}
               className={cn(
-                "group flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition",
-                active && "border-orange-500 bg-orange-50 text-orange-800",
-                !active && done && "border-emerald-200 bg-emerald-50/70 text-emerald-800",
-                !active && !done && "border-gray-200 bg-white text-gray-600 hover:border-gray-300",
+                "group flex items-center gap-2 rounded-[12px] border px-3 py-2 text-left transition",
+                "shadow-[var(--shadow-card)]",
+                active && "border-accent-orange bg-white text-accent-orange",
+                !active && done && "border-success-border bg-success-bg text-success-title",
+                !active && !done && "border-neutral-border bg-card-bg text-text-secondary hover:border-[rgba(242,118,10,0.35)]",
               )}
             >
               <span
                 className={cn(
                   "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                  active && "bg-orange-500 text-white",
-                  !active && done && "bg-emerald-600 text-white",
-                  !active && !done && "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
+                  active && "bg-accent-orange text-white",
+                  !active && done && "bg-success-icon text-white",
+                  !active && !done && "bg-step-upcoming-circle text-text-secondary group-hover:bg-[#d8d6d0]",
                 )}
               >
                 {done ? <CheckRoundedIcon sx={{ fontSize: 14 }} /> : s.id}
               </span>
               <span className="hidden md:block">
-                <span className="block text-xs font-semibold">{s.label}</span>
-                <span className="block text-[11px] opacity-70">{s.description}</span>
+                <span className="block text-xs font-semibold text-text-primary">{s.label}</span>
+                <span className="block text-[11px] text-text-secondary">{s.description}</span>
               </span>
             </button>
           );

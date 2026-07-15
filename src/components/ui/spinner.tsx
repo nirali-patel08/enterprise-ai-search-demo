@@ -11,7 +11,7 @@ const sizes = { sm: 16, md: 24, lg: 40 };
 
 export const Spinner = ({ size = "md", className, label = "Loading..." }: SpinnerProps) => (
   <span role="status" aria-label={label} className={cn("inline-flex", className)}>
-    <CircularProgress size={sizes[size]} aria-hidden="true" sx={{ color: "rgb(249 115 22)" }} />
+    <CircularProgress size={sizes[size]} aria-hidden="true" sx={{ color: "#F2760A" }} />
   </span>
 );
 

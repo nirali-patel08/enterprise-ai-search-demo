@@ -3,37 +3,90 @@ import { createTheme } from "@mui/material/styles";
 export const theme = createTheme({
   palette: {
     primary: {
-      main: "#34300B",
-      dark: "#000",
-      light: "#fdba74",
+      main: "#F2760A",
+      dark: "#EA580C",
       contrastText: "#ffffff",
     },
     secondary: {
-      main: "#FCCF0C",
-      dark: "#B38900",
+      main: "#D4A94A",
+      dark: "#7A6A3E",
     },
     error: {
       main: "#ef4444",
     },
     background: {
-      default: "#f8f8fb",
+      default: "#F0EFEB",
+      paper: "#FFFFFF",
+    },
+    text: {
+      primary: "#1A1A1A",
+      secondary: "#6B6D76",
     },
   },
   typography: {
-    fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+    fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 10,
   },
   components: {
     MuiButton: {
-      defaultProps: {
-        disableElevation: true,
+      defaultProps: { disableElevation: true },
+      styleOverrides: {
+        root: { textTransform: "none", fontWeight: 600, borderRadius: 10, cursor: "pointer" },
       },
+    },
+    MuiButtonBase: {
+      styleOverrides: {
+        root: { cursor: "pointer" },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: { cursor: "pointer" },
+      },
+    },
+    MuiCheckbox: {
+      styleOverrides: {
+        root: { cursor: "pointer" },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: { cursor: "pointer" },
+      },
+    },
+    MuiSwitch: {
+      styleOverrides: {
+        root: { cursor: "pointer" },
+      },
+    },
+    MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          textTransform: "none",
-          fontWeight: 500,
+          borderRadius: 12,
+          background: "rgba(255, 255, 255, 0.55)",
+          fontSize: 14,
+          "& .MuiOutlinedInput-notchedOutline": {
+            borderColor: "rgba(0, 0, 0, 0.10)",
+          },
+          "&:hover .MuiOutlinedInput-notchedOutline": {
+            borderColor: "rgba(0, 0, 0, 0.10)",
+          },
+          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+            borderColor: "rgba(0, 0, 0, 0.10)",
+            borderWidth: 1,
+          },
+        },
+      },
+    },
+    MuiFormLabel: {
+      styleOverrides: {
+        root: {
+          color: "#372900",
+          fontSize: "12px",
+          fontWeight: 600,
+          fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
         },
       },
     },

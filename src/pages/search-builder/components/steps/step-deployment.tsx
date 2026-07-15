@@ -1,67 +1,111 @@
 import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
 import CodeOutlinedIcon from "@mui/icons-material/CodeOutlined";
-import { Card, CardBody } from "@/components/ui/card";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import {
+  CLOUD_CONNECTORS,
+  OPENSOURCE_CONNECTORS,
+  type DeploymentType,
+} from "@/data/sample";
 import { cn } from "@/lib/utils";
-import type { DeploymentType } from "@/data/sample";
 import { useBuilderStore } from "@/store/builder-store";
+
+const DEPLOY_OPTIONS: {
+  id: DeploymentType;
+  title: string;
+  desc: string;
+  nextPreview: string;
+  icon: React.ReactNode;
+  connectors: { id: string; label: string }[];
+}[] = [
+  {
+    id: "cloud",
+    title: "Cloud (Azure) deployment",
+    desc: "Microsoft Foundry, Azure AI Search, SharePoint, Blob, SQL, and Teams integrations.",
+    nextPreview: "SharePoint, Azure Blob, Azure SQL, OneLake, Teams Files, REST API",
+    icon: <CloudOutlinedIcon sx={{ fontSize: 22 }} />,
+    connectors: CLOUD_CONNECTORS.filter((c) =>
+      ["sharepoint", "azure-blob", "azure-sql", "onelake", "teams-files", "rest-api"].includes(c.id),
+    ).map((c) => ({
+      id: c.id,
+      label: c.name.replace(" Storage", "").replace(" Database", "").replace("Microsoft ", ""),
+    })),
+  },
+  {
+    id: "opensource",
+    title: "Open source deployment",
+    desc: "LangGraph orchestration, OpenSearch, PostgreSQL, MinIO, Confluence, and Jira.",
+    nextPreview: "Local FS, S3 / MinIO, PostgreSQL, MongoDB, Confluence, Jira",
+    icon: <CodeOutlinedIcon sx={{ fontSize: 22 }} />,
+    connectors: OPENSOURCE_CONNECTORS.filter((c) =>
+      ["local-fs", "s3-minio", "postgresql", "mongodb", "confluence", "jira"].includes(c.id),
+    ).map((c) => ({
+      id: c.id,
+      label: c.id === "local-fs" ? "Local FS" : c.id === "s3-minio" ? "S3 / MinIO" : c.name,
+    })),
+  },
+];
 
 export const StepDeployment = () => {
   const deploymentType = useBuilderStore((s) => s.deploymentType);
   const setDeploymentType = useBuilderStore((s) => s.setDeploymentType);
-
-  const options: { id: DeploymentType; title: string; desc: string; items: string[]; icon: React.ReactNode; accent: string }[] = [
-    {
-      id: "cloud",
-      title: "Cloud (Azure) Deployment",
-      desc: "Microsoft Foundry, Azure AI Search, SharePoint, Blob, SQL, and Teams integrations.",
-      items: ["SharePoint", "Azure Blob", "Azure SQL", "OneLake", "Teams Files", "REST API"],
-      icon: <CloudOutlinedIcon sx={{ fontSize: 28 }} />,
-      accent: "border-sky-500 bg-sky-50/60 ring-sky-200",
-    },
-    {
-      id: "opensource",
-      title: "Open Source Deployment",
-      desc: "LangGraph orchestration, OpenSearch, PostgreSQL, MinIO, Confluence, and Jira.",
-      items: ["Local FS", "S3 / MinIO", "PostgreSQL", "MongoDB", "Confluence", "Jira"],
-      icon: <CodeOutlinedIcon sx={{ fontSize: 28 }} />,
-      accent: "border-emerald-500 bg-emerald-50/60 ring-emerald-200",
-    },
-  ];
+  const savedConnectors = useBuilderStore((s) => s.savedConnectors);
 
   return (
-    <section className="space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">1. Select Deployment Type</h2>
-        <p className="mt-1 text-sm text-gray-500">Choose cloud or open source first. Available data sources and orchestration options depend on this selection.</p>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        {options.map((opt) => {
-          const selected = deploymentType === opt.id;
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => setDeploymentType(opt.id)}
-              className={cn("text-left transition", selected && "rounded-2xl ring-2", selected && opt.accent)}
-            >
-              <Card className={cn("h-full", selected && "border-transparent shadow-none")}>
-                <CardBody className="p-5">
-                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700">{opt.icon}</div>
-                  <h3 className="font-semibold text-gray-900">{opt.title}</h3>
-                  <p className="mt-2 text-sm text-gray-500">{opt.desc}</p>
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {opt.items.map((item) => (
-                      <span key={item} className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600">
-                        {item}
+    <section className="grid gap-6 md:grid-cols-2">
+      {DEPLOY_OPTIONS.map((opt) => {
+        const selected = deploymentType === opt.id;
+        const configuredIds = new Set(
+          savedConnectors
+            .filter((c) => c.deployment === opt.id && c.validated)
+            .map((c) => c.connectorTypeId),
+        );
+
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setDeploymentType(opt.id)}
+            aria-pressed={selected}
+            className={cn("ds-suite-card group text-left", selected && "ds-suite-card--selected")}
+          >
+            <div className="ds-suite-card__inner">
+              <div className="ds-suite-card__header">
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                  <span className="ds-suite-card__avatar" aria-hidden>
+                    {opt.icon}
+                  </span>
+                  <span className="ds-suite-card__title">{opt.title}</span>
+                </div>
+                {selected && (
+                  <span className="ds-suite-card__check" aria-hidden>
+                    <CheckRoundedIcon sx={{ fontSize: 16 }} />
+                  </span>
+                )}
+              </div>
+
+              <p className="ds-suite-card__desc">{opt.desc}</p>
+
+              <div className="ds-suite-card__footer flex-col items-stretch gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {opt.connectors.map((chip, i) => {
+                    const done = configuredIds.has(chip.id);
+                    const tone = (["blue", "purple", "pink"] as const)[i % 3];
+                    return (
+                      <span
+                        key={chip.id}
+                        className={cn("ds-tag", done ? "ds-tag--configured" : `ds-tag--${tone}`)}
+                      >
+                        {done && <CheckRoundedIcon sx={{ fontSize: 12 }} />}
+                        {chip.label}
                       </span>
-                    ))}
-                  </div>
-                </CardBody>
-              </Card>
-            </button>
-          );
-        })}
-      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </button>
+        );
+      })}
     </section>
   );
 };

@@ -5,6 +5,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import { theme } from "@/theme";
 import App from "@/App";
 import "@/index.css";
+import "@/styles/design-system.scss";
 import "@/pages/search-builder/search-builder.scss";
 
 const root = document.getElementById("root");

@@ -41,14 +41,19 @@ export const StepChat = () => {
   };
 
   return (
-    <section className="space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">7. Agentic AI Chat</h2>
-        <p className="mt-1 text-sm text-gray-500">Production chat with orchestrated agents, RBAC filtering, and citations.</p>
-      </div>
-
+    <section>
       <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
-        <div className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-white/90 bg-white/50 shadow-[0px_6px_15px_0px_rgba(0,0,0,0.08)] backdrop-blur-sm">
+        <div className="route-section flex min-h-[460px] flex-col overflow-hidden !p-0">
+          <div className="flex items-center justify-between gap-3 border-b border-black/[0.06] px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold text-black">Enterprise assistant</h2>
+              <p className="mt-0.5 text-xs text-black/45">Orchestrated agents · grounded answers</p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-bg px-2.5 py-1 text-[11px] font-semibold text-success-title">
+              <span className="h-1.5 w-1.5 rounded-full bg-success-icon" />
+              Online
+            </span>
+          </div>
           <div className="flex-1 space-y-4 overflow-y-auto p-4">
             {chatMessages.map((m, i) => (
               <div key={i} className={cn("flex gap-3", m.role === "user" && "flex-row-reverse")}>
@@ -61,7 +66,7 @@ export const StepChat = () => {
               </div>
             ))}
           </div>
-          <div className="border-t border-gray-100 p-4">
+          <div className="border-t border-black/[0.06] bg-white/35 p-4">
             <div className="flex gap-2">
               <input
                 value={chatInput}
@@ -69,7 +74,7 @@ export const StepChat = () => {
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 placeholder="Ask anything from enterprise knowledge…"
                 aria-label="Chat message"
-                className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none ring-orange-500 focus:ring-2"
+                className="ds-field flex-1 !bg-white"
               />
               <Button variant="primary" size="icon" loading={chatMutation.isPending} onClick={handleSend} aria-label="Send message">
                 <SendRoundedIcon sx={{ fontSize: 18 }} />
@@ -84,8 +89,8 @@ export const StepChat = () => {
               <div>
                 <p className="text-xs font-medium text-gray-600">Knowledge Scope</p>
                 <div className="mt-2 flex gap-2">
-                  <button type="button" className="rounded-full bg-orange-500 px-3 py-1 text-xs font-medium text-white">All Sources</button>
-                  <button type="button" className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">Single Source</button>
+                  <button type="button" className="test-step__chip test-step__chip--active">All Sources</button>
+                  <button type="button" className="test-step__chip">Single Source</button>
                 </div>
               </div>
               {[

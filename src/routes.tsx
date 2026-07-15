@@ -8,6 +8,7 @@ import ChatPage from "@/pages/chat";
 import ConnectorsPage from "@/pages/connectors";
 import AgentsPage from "@/pages/agents";
 import AgentDetailPage from "@/pages/agents/detail";
+import NewAgentPage from "@/pages/agents/new";
 import AnalyticsPage from "@/pages/analytics";
 import GovernancePage from "@/pages/governance";
 import AdminPage from "@/pages/admin";
@@ -25,6 +26,7 @@ export const routes: AppRouteObject[] = [
           { path: "/chat", element: <ChatPage />, meta: { title: "AI Chat" } },
           { path: "/connectors", element: <ConnectorsPage />, meta: { title: "Connectors" } },
           { path: "/agents", element: <AgentsPage />, meta: { title: "Agent Marketplace" } },
+          { path: "/agents/new", element: <NewAgentPage />, meta: { title: "New Agent" } },
           { path: "/agents/:agentId", element: <AgentDetailPage />, meta: { title: "Agent Details" } },
           { path: "/analytics", element: <AnalyticsPage />, meta: { title: "Analytics" } },
           { path: "/governance", element: <GovernancePage />, meta: { title: "Governance" } },

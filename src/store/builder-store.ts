@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ACTION_MODES, DeploymentType, SavedConnector } from "@/data/sample";
+import type { ACTION_MODES, DeploymentType, MarketplaceAgent, SavedConnector } from "@/data/sample";
 import { SAMPLE_SAVED_CONNECTORS } from "@/data/sample";
 
 const MAX_STEP = 7;
@@ -9,8 +9,14 @@ export interface BuilderStore {
   step: number;
   deploymentType: DeploymentType;
   savedConnectors: SavedConnector[];
+  selectedConnectorTypeIds: string[];
   activeConnectorTypeId: string;
   indexingSelection: string[];
+  activeBrowseConnectorId: string;
+  contentSelections: Record<string, string[]>;
+  includeSubfolders: boolean;
+  indexingComplete: boolean;
+  customAgents: MarketplaceAgent[];
   selectedAgentIds: string[];
   orchestrationId: string;
   channels: string[];
@@ -29,11 +35,19 @@ export interface BuilderStore {
   prevStep: () => void;
   setDeploymentType: (type: DeploymentType) => void;
   setActiveConnectorTypeId: (id: string) => void;
+  toggleConnectorType: (typeId: string) => void;
   saveConnector: (connector: SavedConnector) => void;
+  removeConnector: (id: string) => void;
   setIndexingSelection: (ids: string[]) => void;
   toggleIndexingSelection: (id: string) => void;
-  updateConnectorStatus: (id: string, status: SavedConnector["status"], documentCount?: number) => void;
+  setActiveBrowseConnectorId: (id: string) => void;
+  toggleContentPath: (connectorId: string, path: string) => void;
+  setContentSelections: (connectorId: string, paths: string[]) => void;
+  setIncludeSubfolders: (value: boolean) => void;
+  setIndexingComplete: (value: boolean) => void;
+  updateConnectorStatus: (id: string, status: SavedConnector["status"], documentCount?: number, indexedPaths?: string[]) => void;
   toggleAgent: (id: string) => void;
+  addCustomAgent: (agent: MarketplaceAgent) => void;
   setOrchestrationId: (id: string) => void;
   toggleChannel: (id: string) => void;
   setIndexing: (value: boolean) => void;
@@ -54,12 +68,20 @@ export const useBuilderStore = create<BuilderStore>()(
       step: 1,
       deploymentType: "cloud",
       savedConnectors: SAMPLE_SAVED_CONNECTORS,
+      selectedConnectorTypeIds: ["sharepoint", "azure-blob", "azure-sql"],
       activeConnectorTypeId: "sharepoint",
       indexingSelection: ["conn-1"],
+      activeBrowseConnectorId: "conn-1",
+      contentSelections: {
+        "conn-1": ["/sites/knowledge/Shared Documents/Contracts", "/sites/knowledge/Shared Documents/Finance"],
+      },
+      includeSubfolders: true,
+      indexingComplete: false,
+      customAgents: [],
       selectedAgentIds: ["sharepoint-agent", "engineering-drawing-agent", "document-router-agent"],
-      orchestrationId: "foundry-workflow",
+      orchestrationId: "langgraph-supervisor",
       channels: ["web", "teams"],
-      indexProgress: 72,
+      indexProgress: 0,
       indexing: false,
       query: "Show contracts, POs and invoices related to ABC Vendor and identify mismatch.",
       actionMode: "Search",
@@ -79,25 +101,112 @@ export const useBuilderStore = create<BuilderStore>()(
       prevStep: () => set({ step: Math.max(1, get().step - 1) }),
       setDeploymentType: (deploymentType) => set({ deploymentType }),
       setActiveConnectorTypeId: (activeConnectorTypeId) => set({ activeConnectorTypeId }),
+      toggleConnectorType: (typeId) =>
+        set((s) => {
+          const selected = s.selectedConnectorTypeIds.includes(typeId)
+            ? s.selectedConnectorTypeIds.filter((id) => id !== typeId)
+            : [...s.selectedConnectorTypeIds, typeId];
+
+          const indexingSelection = s.savedConnectors
+            .filter(
+              (c) =>
+                c.deployment === s.deploymentType &&
+                c.validated &&
+                selected.includes(c.connectorTypeId),
+            )
+            .map((c) => c.id);
+
+          return {
+            selectedConnectorTypeIds: selected,
+            indexingSelection,
+            indexingComplete: false,
+            activeBrowseConnectorId: indexingSelection[0] ?? "",
+          };
+        }),
       saveConnector: (connector) =>
         set((s) => {
           const exists = s.savedConnectors.find((c) => c.id === connector.id);
-          if (exists) {
-            return { savedConnectors: s.savedConnectors.map((c) => (c.id === connector.id ? connector : c)) };
-          }
-          return { savedConnectors: [...s.savedConnectors, connector] };
+          const savedConnectors = exists
+            ? s.savedConnectors.map((c) => (c.id === connector.id ? connector : c))
+            : [...s.savedConnectors, connector];
+
+          const selectedConnectorTypeIds = s.selectedConnectorTypeIds.includes(connector.connectorTypeId)
+            ? s.selectedConnectorTypeIds
+            : [...s.selectedConnectorTypeIds, connector.connectorTypeId];
+
+          const indexingSelection = savedConnectors
+            .filter(
+              (c) =>
+                c.deployment === s.deploymentType &&
+                c.validated &&
+                selectedConnectorTypeIds.includes(c.connectorTypeId),
+            )
+            .map((c) => c.id);
+
+          return {
+            savedConnectors,
+            selectedConnectorTypeIds,
+            indexingSelection,
+            activeBrowseConnectorId: indexingSelection[0] ?? s.activeBrowseConnectorId,
+          };
         }),
-      setIndexingSelection: (indexingSelection) => set({ indexingSelection }),
+      removeConnector: (id) =>
+        set((s) => {
+          const removed = s.savedConnectors.find((c) => c.id === id);
+          const savedConnectors = s.savedConnectors.filter((c) => c.id !== id);
+          const stillHasType = removed
+            ? savedConnectors.some(
+                (c) => c.connectorTypeId === removed.connectorTypeId && c.deployment === removed.deployment,
+              )
+            : true;
+          const selectedConnectorTypeIds =
+            removed && !stillHasType
+              ? s.selectedConnectorTypeIds.filter((t) => t !== removed.connectorTypeId)
+              : s.selectedConnectorTypeIds;
+          return {
+            savedConnectors,
+            selectedConnectorTypeIds,
+            indexingSelection: s.indexingSelection.filter((x) => x !== id),
+          };
+        }),
+      setIndexingSelection: (indexingSelection) => set({ indexingSelection, indexingComplete: false }),
       toggleIndexingSelection: (id) =>
-        set((s) => ({
-          indexingSelection: s.indexingSelection.includes(id)
+        set((s) => {
+          const next = s.indexingSelection.includes(id)
             ? s.indexingSelection.filter((x) => x !== id)
-            : [...s.indexingSelection, id],
+            : [...s.indexingSelection, id];
+          return { indexingSelection: next, indexingComplete: false };
+        }),
+      setActiveBrowseConnectorId: (activeBrowseConnectorId) => set({ activeBrowseConnectorId }),
+      toggleContentPath: (connectorId, path) =>
+        set((s) => {
+          const current = s.contentSelections[connectorId] ?? [];
+          const next = current.includes(path) ? current.filter((p) => p !== path) : [...current, path];
+          return {
+            contentSelections: { ...s.contentSelections, [connectorId]: next },
+            indexingComplete: false,
+          };
+        }),
+      setContentSelections: (connectorId, paths) =>
+        set((s) => ({
+          contentSelections: { ...s.contentSelections, [connectorId]: paths },
+          indexingComplete: false,
         })),
-      updateConnectorStatus: (id, status, documentCount) =>
+      setIncludeSubfolders: (includeSubfolders) => set({ includeSubfolders }),
+      setIndexingComplete: (indexingComplete) => set({ indexingComplete }),
+      updateConnectorStatus: (id, status, documentCount, indexedPaths) =>
         set((s) => ({
           savedConnectors: s.savedConnectors.map((c) =>
-            c.id === id ? { ...c, status, documentCount: documentCount ?? c.documentCount } : c,
+            c.id === id
+              ? {
+                  ...c,
+                  status,
+                  documentCount: documentCount ?? c.documentCount,
+                  indexedPaths: indexedPaths ?? c.indexedPaths,
+                  selectedPaths: indexedPaths ?? c.selectedPaths,
+                  lastIndexedAt: status === "indexed" ? new Date().toLocaleString() : c.lastIndexedAt,
+                }
+              : c,
           ),
         })),
       toggleAgent: (id) =>
@@ -105,6 +214,13 @@ export const useBuilderStore = create<BuilderStore>()(
           selectedAgentIds: s.selectedAgentIds.includes(id)
             ? s.selectedAgentIds.filter((x) => x !== id)
             : [...s.selectedAgentIds, id],
+        })),
+      addCustomAgent: (agent) =>
+        set((s) => ({
+          customAgents: [...s.customAgents, agent],
+          selectedAgentIds: s.selectedAgentIds.includes(agent.id)
+            ? s.selectedAgentIds
+            : [...s.selectedAgentIds, agent.id],
         })),
       setOrchestrationId: (orchestrationId) => set({ orchestrationId }),
       toggleChannel: (id) =>
@@ -123,12 +239,17 @@ export const useBuilderStore = create<BuilderStore>()(
       setTeamsCompat: (teamsCompat) => set({ teamsCompat }),
     }),
     {
-      name: "enterprise-search-builder-v2",
+      name: "enterprise-search-builder-v4",
       partialize: (state) => ({
         step: state.step,
         deploymentType: state.deploymentType,
         savedConnectors: state.savedConnectors,
+        selectedConnectorTypeIds: state.selectedConnectorTypeIds,
         indexingSelection: state.indexingSelection,
+        contentSelections: state.contentSelections,
+        includeSubfolders: state.includeSubfolders,
+        indexingComplete: state.indexingComplete,
+        customAgents: state.customAgents,
         selectedAgentIds: state.selectedAgentIds,
         orchestrationId: state.orchestrationId,
         channels: state.channels,

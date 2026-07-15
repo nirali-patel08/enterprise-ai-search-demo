@@ -12,7 +12,7 @@ export const SectionCard = ({ title, children, bodyClassName, trailing }: Sectio
   <Card>
     <CardBody className={cn("p-6", bodyClassName)}>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+        <h2 className="text-h3">{title}</h2>
         {trailing}
       </div>
       {children}

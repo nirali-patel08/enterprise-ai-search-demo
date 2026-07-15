@@ -1,19 +1,86 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #f97316;
-  --color-primary-dark: #ea580c;
-  --color-primary-light: #fdba74;
-  --color-sidebar-bg: #0f0e22;
-  --color-sidebar-hover: #1e1d3a;
-  --color-sidebar-active-bg: rgba(249, 115, 22, 0.12);
-  --color-surface: #ffffff;
-  --color-surface-2: #f8f8fb;
-  --color-border: #e5e7eb;
-  --color-text-primary: #111827;
-  --color-text-secondary: #6b7280;
-  --color-text-muted: #9ca3af;
+  /* Sidebar */
+  --color-sidebar-bg: #171512;
+  --color-sidebar-panel: #221f1a;
+  --color-sidebar-text: #9c978c;
+  --color-sidebar-text-dim: #6b6660;
+  --color-sidebar-hover: #1e1c18;
+  --color-active-bg: #332417;
+
+  /* Accent */
+  --color-accent-orange: #f2760a;
+  --color-accent-orange-dark: #ea580c;
+  --color-gold: #d4a94a;
+
+  /* Surfaces */
+  --color-topbar-bg: #f5f4f0;
+  --color-page-bg: #f0efeb;
+  --color-card-bg: #ffffff;
+
+  /* Weave create-agent glass — frosted, sits on stage wash */
+  --color-glass-bg: rgba(255, 255, 255, 0.4);
+  --color-glass-bg-strong: rgba(255, 255, 255, 0.55);
+  --color-glass-border: #ffffff;
+  --color-field-border: rgba(0, 0, 0, 0.10);
+  --color-field-bg: rgba(255, 255, 255, 0.55);
+  --color-label: #372900;
+  --color-label-alt: #4f3b00;
+
+  /* Text */
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #6b6d76;
+
+  /* Status */
+  --color-success-bg: #e4f5ec;
+  --color-success-border: #cbebd8;
+  --color-success-icon: #16a34a;
+  --color-success-title: #14532d;
+  --color-success-body: #1e5b3b;
+
+  /* Selection — soft orange (kept, not azure blue) */
+  --color-selected-bg: #ffffff;
+  --color-selected-border: rgba(242, 118, 10, 0.55);
+  --color-selected-border-soft: rgba(242, 118, 10, 0.35);
+  --color-selected-fill: rgba(255, 248, 240, 0.75);
+  --color-selected-ring: rgba(242, 118, 10, 0.14);
+  --color-selected-pill: #3b82f6;
+
+  /* Borders & misc */
+  --color-neutral-border: #e4e3de;
+  --color-step-upcoming-circle: #e1e0db;
+  --color-demo-pill-bg: #efe9dd;
+  --color-demo-pill-border: #dcd3be;
+  --color-demo-pill-text: #7a6a3e;
+
+  /* Stat icon variants */
+  --color-stat-orange-bg: #fce8d6;
+  --color-stat-blue-bg: #dbeafe;
+
+  /* Typography */
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-avgarddo: "AvgarDDO", serif;
+
+  /* Radius */
+  --radius-card: 12px;
+  --radius-card-lg: 14px;
+  --radius-nav: 10px;
+  --radius-pill: 20px;
+  --radius-badge: 10px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-glass: 0 0 10px 0 rgba(0, 0, 0, 0.05);
+  --shadow-glass-selected: 0 0 15px 0 rgba(0, 0, 0, 0.08);
+}
+
+@font-face {
+  font-family: "AvgarDDO";
+  src: url("./assets/fonts/AvgarDDO/AVGARDD_2.TTF") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
 }
 
 *,
@@ -28,9 +95,35 @@
     height: 100%;
     margin: 0;
     padding: 0;
-    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: var(--color-text-primary);
+    background-color: var(--color-page-bg);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Pointer on all interactive controls */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  label:has(input[type="checkbox"]),
+  label:has(input[type="radio"]),
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  summary {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+  textarea {
+    cursor: text;
   }
 }
 
@@ -40,8 +133,8 @@
 }
 
 :focus-visible {
-  outline-offset: 0.125rem;
-  border-radius: 0.25rem;
+  outline: 2px solid var(--color-accent-orange);
+  outline-offset: 2px;
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -51,4 +144,81 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Slim scrollbars for scrollable content panels */
+.agent-playground__chat-log,
+.agent-playground__config,
+.orch-studio__chat-log,
+.orch-studio__textarea {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+}
+
+.agent-playground__chat-log::-webkit-scrollbar,
+.agent-playground__config::-webkit-scrollbar,
+.orch-studio__chat-log::-webkit-scrollbar,
+.orch-studio__textarea::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.agent-playground__chat-log::-webkit-scrollbar-thumb,
+.agent-playground__config::-webkit-scrollbar-thumb,
+.orch-studio__chat-log::-webkit-scrollbar-thumb,
+.orch-studio__textarea::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 999px;
+}
+
+.agent-playground__chat-log::-webkit-scrollbar-track,
+.agent-playground__config::-webkit-scrollbar-track,
+.orch-studio__chat-log::-webkit-scrollbar-track,
+.orch-studio__textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Typography scale */
+.text-h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.text-h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.text-h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.text-lead {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.text-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.text-stat-label {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.MuiCheckbox-root {
+  margin-right: 12px !important;
 }

@@ -1,14 +1,18 @@
-import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
-import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
-import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
-import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
-import HubRoundedIcon from "@mui/icons-material/HubRounded";
-import MessageRoundedIcon from "@mui/icons-material/MessageRounded";
-import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
-import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
-import SmartToyRoundedIcon from "@mui/icons-material/SmartToyRounded";
+import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
+import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import ManageSearchOutlinedIcon from "@mui/icons-material/ManageSearchOutlined";
+import RadioButtonCheckedRoundedIcon from "@mui/icons-material/RadioButtonCheckedRounded";
+import RadioButtonUncheckedRoundedIcon from "@mui/icons-material/RadioButtonUncheckedRounded";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import { Tooltip } from "@mui/material";
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { BrandMark } from "@/components/ui/brand-mark";
+import { headerTooltipSlotProps } from "@/components/ui/header-tooltip";
 import { cn } from "@/lib/utils";
 
 export interface SidebarItem {
@@ -17,97 +21,177 @@ export interface SidebarItem {
   icon: React.ReactNode;
 }
 
+const ICON_SX = { fontSize: 20 } as const;
+
 const NAV_ITEMS: SidebarItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: <DashboardRoundedIcon sx={{ fontSize: 18 }} /> },
-  { label: "AI Search Builder", href: "/builder", icon: <SearchRoundedIcon sx={{ fontSize: 18 }} /> },
-  { label: "AI Chat", href: "/chat", icon: <MessageRoundedIcon sx={{ fontSize: 18 }} /> },
-  { label: "Connectors", href: "/connectors", icon: <HubRoundedIcon sx={{ fontSize: 18 }} /> },
-  { label: "Agent Marketplace", href: "/agents", icon: <SmartToyRoundedIcon sx={{ fontSize: 18 }} /> },
-  { label: "Analytics", href: "/analytics", icon: <AnalyticsRoundedIcon sx={{ fontSize: 18 }} /> },
-  { label: "Governance", href: "/governance", icon: <ShieldRoundedIcon sx={{ fontSize: 18 }} /> },
+  { label: "Dashboard", href: "/dashboard", icon: <GridViewOutlinedIcon sx={ICON_SX} /> },
+  { label: "AI Search Builder", href: "/builder", icon: <ManageSearchOutlinedIcon sx={ICON_SX} /> },
+  { label: "AI Chat", href: "/chat", icon: <ForumOutlinedIcon sx={ICON_SX} /> },
+  { label: "Connectors", href: "/connectors", icon: <HubOutlinedIcon sx={ICON_SX} /> },
+  { label: "Agent Marketplace", href: "/agents", icon: <SmartToyOutlinedIcon sx={ICON_SX} /> },
+  { label: "Analytics", href: "/analytics", icon: <InsightsOutlinedIcon sx={ICON_SX} /> },
+  { label: "Governance", href: "/governance", icon: <ShieldOutlinedIcon sx={ICON_SX} /> },
 ];
 
 const BOTTOM_ITEMS: SidebarItem[] = [
-  { label: "Admin", href: "/admin", icon: <SettingsRoundedIcon sx={{ fontSize: 18 }} /> },
+  { label: "Admin", href: "/admin", icon: <SettingsOutlinedIcon sx={ICON_SX} /> },
 ];
 
 interface SidebarProps {
-  collapsed: boolean;
-  onToggle: () => void;
+  /** Locked-open state controlled by the pin toggle. */
+  pinned?: boolean;
+  onTogglePin?: () => void;
+  /** Mobile drawer: always expanded, static positioning, closes on navigate. */
+  mobile?: boolean;
+  /** Called after a nav item is clicked (mobile closes the drawer). */
+  onNavigate?: () => void;
 }
 
-export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => (
-  <nav
-    aria-label="Main navigation"
-    className={cn(
-      "flex h-screen flex-col bg-sidebar-bg text-white transition-all duration-300 ease-in-out",
-      collapsed ? "w-[4.5rem]" : "w-[16.25rem]",
-    )}
-  >
-    <div className={cn("flex h-16 shrink-0 items-center border-b border-white/10", collapsed ? "justify-center px-0" : "px-5")}>
-      <Link to="/dashboard" className={cn("flex items-center", collapsed ? "justify-center" : "gap-2.5")}>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500">
-          <span className="text-sm font-bold text-white">EA</span>
-        </div>
-        {!collapsed && (
-          <div>
-            <p className="text-sm font-bold leading-none text-white">Enterprise AI</p>
-            <p className="mt-0.5 text-xs text-white/50">Search Platform</p>
-          </div>
-        )}
-      </Link>
-    </div>
+export const Sidebar = ({ pinned = false, onTogglePin, mobile = false, onNavigate }: SidebarProps) => {
+  const [hovered, setHovered] = useState(false);
 
-    <div className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
-      {NAV_ITEMS.map((item) => (
-        <NavItem key={item.href} item={item} collapsed={collapsed} />
-      ))}
-    </div>
+  // Expanded when pinned open, hovered (desktop auto-expand), or in the mobile drawer.
+  const expanded = mobile || pinned || hovered;
+  const floating = expanded && !pinned && !mobile;
 
-    <div className="flex flex-col gap-1 border-t border-white/10 px-3 py-4">
-      {BOTTOM_ITEMS.map((item) => (
-        <NavItem key={item.href} item={item} collapsed={collapsed} />
-      ))}
-      {!collapsed && (
-        <div className="mt-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3">
-          <p className="text-[11px] font-semibold uppercase text-amber-200">Demo mode</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-white/60">Sample data only.</p>
-        </div>
-      )}
-    </div>
+  const handleItemClick = () => {
+    // Auto-collapse the hover-expanded rail after a selection (Vuexy behavior).
+    setHovered(false);
+    onNavigate?.();
+  };
 
-    <div className={cn("flex pb-4", collapsed ? "justify-center" : "px-3")}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-      >
-        {collapsed ? <ChevronRightRoundedIcon sx={{ fontSize: 16 }} /> : <ChevronLeftRoundedIcon sx={{ fontSize: 16 }} />}
-      </button>
-    </div>
-  </nav>
-);
-
-const NavItem = ({ item, collapsed }: { item: SidebarItem; collapsed: boolean }) => {
-  const { pathname } = useLocation();
-  const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
+  const handleTogglePin = () => {
+    // Unlocking collapses the rail immediately, even while the cursor stays over it.
+    if (pinned) setHovered(false);
+    onTogglePin?.();
+  };
 
   return (
+    <nav
+      aria-label="Main navigation"
+      onMouseEnter={mobile ? undefined : () => setHovered(true)}
+      onMouseLeave={mobile ? undefined : () => setHovered(false)}
+      className={cn(
+        "flex flex-col bg-sidebar-bg text-sidebar-text",
+        "transition-[width] duration-300 ease-in-out",
+        mobile ? "relative h-screen" : "absolute inset-y-0 left-0 z-40 h-screen",
+        expanded ? "w-[260px]" : "w-[72px]",
+        floating && "shadow-2xl",
+      )}
+      style={{ padding: "20px 12px" }}
+    >
+      {/* Logo + pin toggle */}
+      <div className={cn("mb-6 flex h-9 shrink-0 items-center px-1.5", expanded ? "justify-between" : "justify-center")}>
+        {expanded ? (
+          <>
+            <Link to="/dashboard" className="flex min-w-0 items-center gap-2.5" onClick={handleItemClick}>
+              <BrandMark size={30} className="shrink-0" />
+              <div className="min-w-0 whitespace-nowrap">
+                <p className="truncate text-sm font-bold leading-none text-white">Enterprise AI</p>
+                <p className="mt-0.5 truncate text-xs text-sidebar-text-dim">Search Platform</p>
+              </div>
+            </Link>
+            {!mobile && onTogglePin && (
+              <Tooltip
+                title={pinned ? "Unlock sidebar (auto-collapse)" : "Lock sidebar open"}
+                placement="right"
+                slotProps={headerTooltipSlotProps}
+              >
+                <button
+                  type="button"
+                  onClick={handleTogglePin}
+                  aria-label={pinned ? "Unlock sidebar" : "Lock sidebar open"}
+                  aria-pressed={pinned}
+                  className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-orange",
+                    pinned
+                      ? "text-accent-orange hover:bg-sidebar-hover"
+                      : "text-sidebar-text-dim hover:bg-sidebar-hover hover:text-sidebar-text",
+                  )}
+                >
+                  {pinned ? (
+                    <RadioButtonCheckedRoundedIcon sx={{ fontSize: 18 }} />
+                  ) : (
+                    <RadioButtonUncheckedRoundedIcon sx={{ fontSize: 18 }} />
+                  )}
+                </button>
+              </Tooltip>
+            )}
+          </>
+        ) : (
+          <Link
+            to="/dashboard"
+            aria-label="Enterprise AI Search home"
+            className="flex h-9 w-9 items-center justify-center"
+            onClick={handleItemClick}
+          >
+            <BrandMark size={30} />
+          </Link>
+        )}
+      </div>
+
+      {/* Menu */}
+      <div className="flex flex-1 flex-col overflow-y-auto no-scrollbar">
+        <div className="flex flex-col">
+          {NAV_ITEMS.map((item) => (
+            <NavItem key={item.href} item={item} expanded={expanded} onNavigate={handleItemClick} />
+          ))}
+        </div>
+      </div>
+
+      {/* System */}
+      <div className="mt-4 flex flex-col">
+        {BOTTOM_ITEMS.map((item) => (
+          <NavItem key={item.href} item={item} expanded={expanded} onNavigate={handleItemClick} />
+        ))}
+      </div>
+    </nav>
+  );
+};
+
+const NavItem = ({
+  item,
+  expanded,
+  onNavigate,
+}: {
+  item: SidebarItem;
+  expanded: boolean;
+  onNavigate: () => void;
+}) => {
+  const { pathname } = useLocation();
+  const active =
+    pathname === item.href ||
+    (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
+
+  const link = (
     <Link
       to={item.href}
-      aria-label={collapsed ? item.label : undefined}
+      onClick={onNavigate}
+      aria-label={!expanded ? item.label : undefined}
       aria-current={active ? "page" : undefined}
-      title={collapsed ? item.label : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400",
-        active ? "bg-orange-500/15 text-orange-400" : "text-white/60 hover:bg-white/8 hover:text-white",
-        collapsed && "mx-auto h-10 w-10 justify-center px-0",
+        "mb-0.5 flex cursor-pointer items-center gap-3 overflow-hidden rounded-[10px] px-3 py-3 text-[14px] font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-orange",
+        active
+          ? "bg-active-bg text-accent-orange"
+          : "text-sidebar-text hover:bg-sidebar-hover",
       )}
     >
-      <span className={cn("shrink-0", active && "text-orange-400")}>{item.icon}</span>
-      {!collapsed && <span className="truncate">{item.label}</span>}
+      <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center", active ? "text-accent-orange" : "text-sidebar-text")}>
+        {item.icon}
+      </span>
+      {expanded && <span className="truncate whitespace-nowrap">{item.label}</span>}
     </Link>
   );
+
+  if (!expanded) {
+    return (
+      <Tooltip title={item.label} placement="right" enterDelay={200} slotProps={headerTooltipSlotProps}>
+        <span className="block">{link}</span>
+      </Tooltip>
+    );
+  }
+
+  return link;
 };
