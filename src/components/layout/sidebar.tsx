@@ -87,8 +87,8 @@ export const Sidebar = ({ pinned = false, onTogglePin, mobile = false, onNavigat
             <Link to="/dashboard" className="flex min-w-0 items-center gap-2.5" onClick={handleItemClick}>
               <BrandMark size={38} className="shrink-0" />
               <div className="min-w-0 whitespace-nowrap">
-                <p className="truncate text-sm font-bold leading-none text-white">Enterprise AI</p>
-                <p className="mt-0.5 truncate text-xs font-medium text-accent-orange">Search Platform</p>
+                <p className="truncate text-[14px] font-bold leading-tight text-white">Enterprise AI</p>
+                <p className="mt-0.5 truncate text-[12px] font-semibold text-accent-orange">Search Platform</p>
               </div>
             </Link>
             {!mobile && onTogglePin && (
@@ -133,7 +133,7 @@ export const Sidebar = ({ pinned = false, onTogglePin, mobile = false, onNavigat
 
       {/* Menu */}
       <div className="flex flex-1 flex-col overflow-y-auto no-scrollbar">
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-1">
           {NAV_ITEMS.map((item) => (
             <NavItem key={item.href} item={item} expanded={expanded} onNavigate={handleItemClick} />
           ))}
@@ -171,7 +171,7 @@ const NavItem = ({
       aria-label={!expanded ? item.label : undefined}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "mb-0.5 flex cursor-pointer items-center gap-3 overflow-hidden rounded-[10px] px-3 py-3 text-[14px] font-medium transition-colors",
+        "flex cursor-pointer items-center gap-3 overflow-hidden rounded-[10px] px-3 py-2.5 text-[14px] font-medium transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-orange",
         active
           ? "bg-active-bg text-accent-orange"
