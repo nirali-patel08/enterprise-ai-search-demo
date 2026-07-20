@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
@@ -18,18 +19,40 @@ export const Header = ({ onMenuToggle, showMenuButton }: HeaderProps) => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileHover, setProfileHover] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
   const profileRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
-      if (!profileRef.current?.contains(e.target as Node)) setMenuOpen(false);
+      const target = e.target as Node;
+      if (profileRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setMenuOpen(false);
     };
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
+  useEffect(() => {
+    if (!menuOpen || !profileRef.current) return;
+    const updatePos = () => {
+      const rect = profileRef.current!.getBoundingClientRect();
+      setMenuPos({
+        top: rect.bottom + 8,
+        right: Math.max(12, window.innerWidth - rect.right),
+      });
+    };
+    updatePos();
+    window.addEventListener("resize", updatePos);
+    window.addEventListener("scroll", updatePos, true);
+    return () => {
+      window.removeEventListener("resize", updatePos);
+      window.removeEventListener("scroll", updatePos, true);
+    };
+  }, [menuOpen]);
+
   return (
-    <header className="sticky top-0 left-0 z-30 flex h-[60px] items-center justify-between border-b-[1.5px] border-white bg-[rgba(255,255,255,0.34)] px-4 shadow-[0_1px_5px_0_rgba(0,0,0,0.10)] backdrop-blur-[12px] sm:px-[38px]">
+    <header className="relative sticky top-0 left-0 z-50 flex h-[60px] shrink-0 items-center justify-between overflow-visible border-b-[1.5px] border-white bg-[rgba(255,255,255,0.34)] px-4 shadow-[0_1px_5px_0_rgba(0,0,0,0.10)] backdrop-blur-[12px] sm:px-[38px]">
       <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-5">
         {showMenuButton && (
           <button
@@ -41,8 +64,6 @@ export const Header = ({ onMenuToggle, showMenuButton }: HeaderProps) => {
             <MenuRoundedIcon sx={{ fontSize: 20 }} />
           </button>
         )}
-
-        
       </div>
 
       <div className="flex items-center justify-end gap-3 sm:gap-5">
@@ -91,60 +112,67 @@ export const Header = ({ onMenuToggle, showMenuButton }: HeaderProps) => {
               </span>
             </button>
           </Tooltip>
-
-          <AnimatePresence>
-            {menuOpen && (
-              <motion.div
-                role="menu"
-                aria-label="User menu"
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                className="absolute right-0 top-full z-20 mt-2 w-[280px] max-w-[calc(100vw-20px)] overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.9)] shadow-[0px_6px_15px_0px_rgba(0,0,0,0.22)]"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(90deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.2) 100%), linear-gradient(330.45deg, #EDEDED 52.87%, #F3E7C4 97.2%)",
-                }}
-              >
-                <div className="relative px-3.5 pt-3.5 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gold text-[11px] font-bold text-white">
-                      AD
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-[14px] font-semibold uppercase leading-[20px] text-text-primary">Admin</p>
-                      <p className="truncate text-[12.5px] font-bold text-accent-orange-dark">Administrator</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="relative pb-2">
-                  <MenuOption
-                    icon={<SettingsRoundedIcon sx={{ fontSize: 18 }} />}
-                    label="Admin Console"
-                    onClick={() => {
-                      navigate("/admin");
-                      setMenuOpen(false);
-                    }}
-                  />
-                  <MenuOption
-                    icon={<LogoutRoundedIcon sx={{ fontSize: 18 }} />}
-                    label="Log out"
-                    onClick={() => {
-                      navigate("/dashboard");
-                      setMenuOpen(false);
-                    }}
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
+
+      {createPortal(
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.div
+              ref={menuRef}
+              role="menu"
+              aria-label="User menu"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="fixed z-[2000] w-[280px] max-w-[calc(100vw-20px)] overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.9)] shadow-[0px_6px_15px_0px_rgba(0,0,0,0.22)]"
+              style={{
+                top: menuPos.top,
+                right: menuPos.right,
+                backgroundImage:
+                  "linear-gradient(90deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.2) 100%), linear-gradient(330.45deg, #EDEDED 52.87%, #F3E7C4 97.2%)",
+              }}
+            >
+              <div className="relative px-3.5 pt-3.5 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gold text-[11px] font-bold text-white">
+                    AD
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-[14px] font-semibold uppercase leading-[20px] text-text-primary">Admin</p>
+                    <p className="truncate text-[12.5px] font-bold text-accent-orange-dark">Administrator</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative pb-2">
+                <MenuOption
+                  icon={<SettingsRoundedIcon sx={{ fontSize: 18 }} />}
+                  label="Admin Console"
+                  onClick={() => {
+                    navigate("/admin");
+                    setMenuOpen(false);
+                  }}
+                />
+                <MenuOption
+                  icon={<LogoutRoundedIcon sx={{ fontSize: 18 }} />}
+                  label="Log out"
+                  onClick={() => {
+                    navigate("/dashboard");
+                    setMenuOpen(false);
+                  }}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </header>
   );
 };
+
 const MenuOption = ({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) => (
   <button
     type="button"
@@ -162,4 +190,3 @@ const MenuOption = ({ icon, label, onClick }: { icon: React.ReactNode; label: st
     />
   </button>
 );
-

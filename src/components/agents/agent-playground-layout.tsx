@@ -7,7 +7,6 @@ import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import AttachFileRoundedIcon from "@mui/icons-material/AttachFileRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
@@ -24,23 +23,19 @@ import { Field, Textarea, TextInput } from "@/pages/search-builder/components/wi
 import { cn } from "@/lib/utils";
 import "@/pages/agents/agent-playground.scss";
 
-const PLAYGROUND_TABS = ["Chat", "YAML", "Call agent"] as const;
-
 const CREATE_MODES = [
   { id: "build", label: "Build", type: "prompt" as const },
   { id: "code", label: "Code", type: "workflow" as const },
   { id: "external", label: "Link", type: "external" as const },
 ];
 
-const MODELS = ["gpt-4o-mini", "gpt-4o", "gpt-5"];
-const SEARCH_INDEXES = ["byod-index", "sharepoint-index", "engineering-tables", "tech-docs-index"];
+const SEARCH_INDEXES = ["byod-index", "document-library-index", "engineering-tables", "tech-docs-index"];
 
 export type AgentPlaygroundMode = (typeof CREATE_MODES)[number]["id"];
 
 export interface AgentPlaygroundValues {
   name: string;
   description: string;
-  model: string;
   instructions: string;
   searchIndex: string;
   externalUrl: string;
@@ -105,8 +100,6 @@ export function AgentPlaygroundLayout({
   onSave,
   onPublish,
 }: AgentPlaygroundLayoutProps) {
-  const [playgroundTab, setPlaygroundTab] = useState<(typeof PLAYGROUND_TABS)[number]>("Chat");
-  const [voiceMode, setVoiceMode] = useState(false);
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState<ChatMsg[]>([]);
   const [sending, setSending] = useState(false);
@@ -167,19 +160,6 @@ export function AgentPlaygroundLayout({
     window.setTimeout(() => setCopiedId((id) => (id === msg.id ? null : id)), 1500);
   };
 
-  const yamlPreview = useMemo(
-    () =>
-      [
-        `name: ${values.name || "new-agent"}`,
-        `type: ${selectedMode.type}`,
-        `model: ${values.model}`,
-        `search_index: ${values.searchIndex}`,
-        `instructions: |`,
-        `  ${(values.instructions || values.description || "Add instructions for your agent.").replace(/\n/g, "\n  ")}`,
-      ].join("\n"),
-    [selectedMode.type, values.description, values.instructions, values.model, values.name, values.searchIndex],
-  );
-
   return (
     <PageShell className="agent-playground-page !px-6">
       <div className="agent-playground">
@@ -191,6 +171,19 @@ export function AgentPlaygroundLayout({
           <ChevronLeftRoundedIcon sx={{ fontSize: 18 }} />
           Agents
         </Link>
+
+        {variant === "detail" ? (
+          <h1 className="agent-playground__name">{displayName}</h1>
+        ) : (
+          <input
+            id="agent-title"
+            className="agent-playground__name-input"
+            value={values.name}
+            onChange={(e) => onChange("name", e.target.value)}
+            placeholder="Agent name"
+            aria-label="Agent name"
+          />
+        )}
 
         <div className="agent-playground__actions">
           <Button variant="secondary" size="sm" onClick={onSave}>
@@ -205,87 +198,10 @@ export function AgentPlaygroundLayout({
       <div className="ds-wizard-stage agent-playground__stage">
         <img src={createAgentBoxBg} alt="" aria-hidden="true" className="ds-wizard-stage__bg" />
         <div className="ds-wizard-stage__body agent-playground__stage-body">
-          <div className="agent-playground__mode-tabs ds-cat-tabs">
-            {CREATE_MODES.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => onChange("mode", mode.id)}
-                className={cn("ds-cat-tab", values.mode === mode.id && "ds-cat-tab--active")}
-              >
-                {mode.label}
-              </button>
-            ))}
-          </div>
-
           <div className="agent-playground__workspace">
             <aside className="agent-playground__config">
-              <CollapsibleSection title="Agent">
-                <Field label="Agent name" htmlFor="agent-name">
-                  <TextInput
-                    id="agent-name"
-                    value={values.name}
-                    onChange={(e) => onChange("name", e.target.value)}
-                    placeholder="e.g. Engineering-Drawing-Agent"
-                    disabled={variant === "detail"}
-                  />
-                </Field>
-              </CollapsibleSection>
-
-              {selectedMode.type !== "external" && (
-                <CollapsibleSection title="Model">
-                  <div className="agent-playground__model-row">
-                    <select
-                      className="ds-field"
-                      value={values.model}
-                      onChange={(e) => onChange("model", e.target.value)}
-                      aria-label="Model"
-                    >
-                      {MODELS.map((model) => (
-                        <option key={model} value={model}>
-                          {model}
-                        </option>
-                      ))}
-                    </select>
-                    <Button variant="ghost" size="icon" aria-label="Model settings">
-                      <SettingsRoundedIcon sx={{ fontSize: 18 }} />
-                    </Button>
-                  </div>
-                  <p className="agent-playground__hint">Standard deployment</p>
-                </CollapsibleSection>
-              )}
-
-              {selectedMode.type === "prompt" && (
-                <CollapsibleSection title="Voice mode">
-                  <div className="agent-playground__row-between">
-                    <p className="agent-playground__hint !mt-0">
-                      Enable voice input and spoken responses for this agent.
-                    </p>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={voiceMode}
-                      className={cn("agent-playground__toggle", voiceMode && "agent-playground__toggle--on")}
-                      onClick={() => setVoiceMode((v) => !v)}
-                    >
-                      <span className="agent-playground__toggle-knob" />
-                    </button>
-                  </div>
-                </CollapsibleSection>
-              )}
-
-              <CollapsibleSection title="Instructions">
-                {selectedMode.type === "workflow" ? (
-                  <Field label="Workflow definition" htmlFor="workflow-definition">
-                    <Textarea
-                      id="workflow-definition"
-                      rows={8}
-                      value={values.instructions}
-                      onChange={(e) => onChange("instructions", e.target.value)}
-                      placeholder="Describe routing logic or paste workflow YAML"
-                    />
-                  </Field>
-                ) : selectedMode.type === "external" ? (
+              {selectedMode.type === "external" ? (
+                <CollapsibleSection title="Connection">
                   <Field label="External agent endpoint" htmlFor="external-url">
                     <TextInput
                       id="external-url"
@@ -294,18 +210,32 @@ export function AgentPlaygroundLayout({
                       placeholder="https://api.contoso.com/agents/procurement"
                     />
                   </Field>
-                ) : (
-                  <Field label="System instructions" htmlFor="instructions">
-                    <Textarea
-                      id="instructions"
-                      rows={8}
-                      value={values.instructions}
-                      onChange={(e) => onChange("instructions", e.target.value)}
-                      placeholder="You are an enterprise search assistant. Answer using indexed documents only."
-                    />
-                  </Field>
-                )}
-              </CollapsibleSection>
+                </CollapsibleSection>
+              ) : (
+                <CollapsibleSection title="Instructions">
+                  {selectedMode.type === "workflow" ? (
+                    <Field label="Workflow definition" htmlFor="workflow-definition">
+                      <Textarea
+                        id="workflow-definition"
+                        rows={8}
+                        value={values.instructions}
+                        onChange={(e) => onChange("instructions", e.target.value)}
+                        placeholder="Describe routing logic or paste workflow YAML"
+                      />
+                    </Field>
+                  ) : (
+                    <Field label="System instructions" htmlFor="instructions">
+                      <Textarea
+                        id="instructions"
+                        rows={8}
+                        value={values.instructions}
+                        onChange={(e) => onChange("instructions", e.target.value)}
+                        placeholder="You are an enterprise search assistant. Answer using indexed documents only."
+                      />
+                    </Field>
+                  )}
+                </CollapsibleSection>
+              )}
 
               {selectedMode.type === "prompt" && (
                 <CollapsibleSection title="Tools">
@@ -317,7 +247,7 @@ export function AgentPlaygroundLayout({
                       <span className="agent-playground__tool-icon" aria-hidden>
                         <SearchRoundedIcon sx={{ fontSize: 16 }} />
                       </span>
-                      Azure AI Search
+                      Enterprise Search
                     </div>
                     <select
                       className="ds-field"
@@ -359,29 +289,7 @@ export function AgentPlaygroundLayout({
 
             <section className="agent-playground__playground ds-glass">
               <div className="agent-playground__playground-toolbar">
-                <div className="agent-playground__playground-tabs">
-                  {PLAYGROUND_TABS.map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setPlaygroundTab(tab)}
-                      className={cn(
-                        "agent-playground__playground-tab",
-                        playgroundTab === tab && "agent-playground__playground-tab--active",
-                      )}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
                 <div className="agent-playground__playground-tools">
-                  <Button variant="ghost" size="sm">
-                    Metrics
-                    <KeyboardArrowDownRoundedIcon sx={{ fontSize: 16 }} />
-                  </Button>
-                  <Button variant="ghost" size="icon" aria-label="Settings">
-                    <SettingsRoundedIcon sx={{ fontSize: 18 }} />
-                  </Button>
                   <Button variant="ghost" size="icon" aria-label="New chat" onClick={() => setChat([])}>
                     <AddRoundedIcon sx={{ fontSize: 18 }} />
                   </Button>
@@ -389,9 +297,7 @@ export function AgentPlaygroundLayout({
               </div>
 
               <div className="agent-playground__playground-body">
-                {playgroundTab === "Chat" && (
-                  <>
-                    <div className="agent-playground__chat-log" ref={logRef}>
+                <div className="agent-playground__chat-log" ref={logRef}>
                       {chat.length === 0 && (
                         <div className="agent-playground__playground-empty">
                           <span className="agent-playground__welcome-icon" aria-hidden>
@@ -593,23 +499,6 @@ export function AgentPlaygroundLayout({
                         Demo responses use static sample data · AI-generated content may be incorrect
                       </p>
                     </div>
-                  </>
-                )}
-
-                {playgroundTab === "YAML" && (
-                  <div className="agent-playground__playground-details">
-                    <pre className="agent-playground__yaml">{yamlPreview}</pre>
-                  </div>
-                )}
-
-                {playgroundTab === "Call agent" && (
-                  <div className="agent-playground__playground-details">
-                    <p className="text-sm text-text-secondary">
-                      Invoke this agent programmatically using your deployment endpoint and API key.
-                    </p>
-                    <pre className="agent-playground__yaml mt-4">{`POST /agents/${values.name.trim() ? values.name.trim().toLowerCase().replace(/\\s+/g, "-") : "new-agent"}/invoke\nAuthorization: Bearer <api-key>\nContent-Type: application/json`}</pre>
-                  </div>
-                )}
               </div>
             </section>
           </div>

@@ -14,8 +14,6 @@ import { StepConnectors } from "./components/steps/step-connectors";
 import { StepIndexing } from "./components/steps/step-indexing";
 import { StepAgents } from "./components/steps/step-agents";
 import { StepOrchestration } from "./components/steps/step-orchestration";
-import { StepTest } from "./components/steps/step-test";
-import { StepDeploy } from "./components/steps/step-deploy";
 import "./search-builder.scss";
 
 const MAX_STEP = STEPS.length;
@@ -31,8 +29,8 @@ export default function SearchBuilderPage() {
   const indexingSelection = useBuilderStore((s) => s.indexingSelection);
   const selectedAgentIds = useBuilderStore((s) => s.selectedAgentIds);
   const orchestrationId = useBuilderStore((s) => s.orchestrationId);
+  const orchestrationSaved = useBuilderStore((s) => s.orchestrationSaved);
   const testRan = useBuilderStore((s) => s.testRan);
-  const deployed = useBuilderStore((s) => s.deployed);
   const indexingComplete = useBuilderStore((s) => s.indexingComplete);
   const indexProgress = useBuilderStore((s) => s.indexProgress);
 
@@ -49,16 +47,14 @@ export default function SearchBuilderPage() {
     (step === 2 && selectedReady.length > 0) ||
     (step === 3 && indexingSelection.length > 0 && (indexingComplete || indexProgress >= 100)) ||
     (step === 4 && selectedAgentIds.length > 0) ||
-    (step === 5 && !!orchestrationId) ||
-    (step === 6 && testRan) ||
-    (step === 7 && deployed);
+    (step === 5 && !!orchestrationId && orchestrationSaved && testRan);
 
   return (
     <PageShell className="search-builder-page">
       <div className="search-builder-page__chrome">
-        <p className="mb-3 text-[13px] leading-[150%] text-text-secondary">
-          Cloud or open source deployment — connect sources, index, add agents, orchestrate, test, and deploy.
-        </p>
+        {/* <p className="mb-3 text-[13px] leading-[150%] text-text-secondary">
+          Cloud or open source deployment — connect sources, index, add agents, then orchestrate and test.
+        </p> */}
         <WizardStepper />
       </div>
 
@@ -74,7 +70,7 @@ export default function SearchBuilderPage() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 className={
-                  step === 3 || step === 5 || step === 6
+                  step === 3 || step === 5
                     ? "search-builder-step"
                     : "search-builder-step search-builder-step--scroll"
                 }
@@ -84,8 +80,6 @@ export default function SearchBuilderPage() {
                 {step === 3 && <StepIndexing />}
                 {step === 4 && <StepAgents />}
                 {step === 5 && <StepOrchestration />}
-                {step === 6 && <StepTest />}
-                {step === 7 && <StepDeploy />}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -104,7 +98,7 @@ export default function SearchBuilderPage() {
           <Button
             variant="primary"
             disabled={!canContinue}
-            onClick={() => navigate("/chat")}
+            onClick={() => navigate("/agents")}
           >
             <CheckRoundedIcon sx={{ fontSize: 18 }} />
             Finish

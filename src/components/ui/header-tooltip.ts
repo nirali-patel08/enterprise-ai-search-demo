@@ -4,11 +4,13 @@ import type { TooltipProps } from "@mui/material/Tooltip";
 export const headerTooltipSlotProps: TooltipProps["slotProps"] = {
   popper: {
     modifiers: [{ name: "offset", options: { offset: [0, -6] } }],
+    style: { zIndex: 2100 },
   },
   tooltip: {
     style: {
       fontSize: 12,
-      fontFamily: "Inter, sans-serif",
+      fontFamily:
+        '"Public Sans", -apple-system, blinkmacsystemfont, "Segoe UI", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
       fontWeight: 500,
       background: "#333333",
       color: "#ffffff",

@@ -244,7 +244,7 @@
   color: var(--color-text-primary);
   outline: none;
   transition: border-color 0.15s ease, background 0.15s ease;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .ds-field::placeholder {
@@ -261,7 +261,7 @@
   color: var(--color-label);
   font-size: 12px;
   font-weight: 600;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .ds-chip {
@@ -277,7 +277,7 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: #334155;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .ds-list-row {
@@ -948,7 +948,7 @@
 
 .ds-suite-card__title {
   color: #000;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 17px;
   font-weight: 600;
   line-height: 1.35;
@@ -969,7 +969,7 @@
 
 .ds-suite-card__desc {
   color: #6a7282;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 400;
   line-height: 1.45;
@@ -992,7 +992,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 800;
   line-height: 0.8rem;

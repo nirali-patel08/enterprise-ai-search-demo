@@ -24,7 +24,6 @@ export default function AgentDetailPage() {
     return {
       name: agent.name,
       description: agent.description ?? "",
-      model: agent.model ?? "gpt-4o-mini",
       instructions: agent.instructions ?? agent.description ?? "",
       searchIndex: agent.searchIndex ?? "byod-index",
       externalUrl: "",

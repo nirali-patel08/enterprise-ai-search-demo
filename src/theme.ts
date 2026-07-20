@@ -24,7 +24,8 @@ export const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
+    fontFamily:
+      '"Public Sans", -apple-system, blinkmacsystemfont, "Segoe UI", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
   },
   shape: {
     borderRadius: 10,
@@ -86,7 +87,8 @@ export const theme = createTheme({
           color: "#372900",
           fontSize: "12px",
           fontWeight: 600,
-          fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
+          fontFamily:
+            '"Public Sans", -apple-system, blinkmacsystemfont, "Segoe UI", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
         },
       },
     },

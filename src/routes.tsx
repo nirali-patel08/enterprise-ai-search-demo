@@ -4,13 +4,10 @@ import { ProtectedRoute } from "@/components/layout/protected-route";
 import type { AppRouteObject } from "@/types/router";
 import DashboardPage from "@/pages/dashboard";
 import SearchBuilderPage from "@/pages/search-builder";
-import ChatPage from "@/pages/chat";
 import ConnectorsPage from "@/pages/connectors";
 import AgentsPage from "@/pages/agents";
 import AgentDetailPage from "@/pages/agents/detail";
 import NewAgentPage from "@/pages/agents/new";
-import AnalyticsPage from "@/pages/analytics";
-import GovernancePage from "@/pages/governance";
 import AdminPage from "@/pages/admin";
 
 export const routes: AppRouteObject[] = [
@@ -23,14 +20,14 @@ export const routes: AppRouteObject[] = [
         children: [
           { path: "/dashboard", element: <DashboardPage />, meta: { title: "Dashboard" } },
           { path: "/builder", element: <SearchBuilderPage />, meta: { title: "AI Search Builder" } },
-          { path: "/chat", element: <ChatPage />, meta: { title: "AI Chat" } },
           { path: "/connectors", element: <ConnectorsPage />, meta: { title: "Connectors" } },
           { path: "/agents", element: <AgentsPage />, meta: { title: "Agent Marketplace" } },
           { path: "/agents/new", element: <NewAgentPage />, meta: { title: "New Agent" } },
           { path: "/agents/:agentId", element: <AgentDetailPage />, meta: { title: "Agent Details" } },
-          { path: "/analytics", element: <AnalyticsPage />, meta: { title: "Analytics" } },
-          { path: "/governance", element: <GovernancePage />, meta: { title: "Governance" } },
           { path: "/admin", element: <AdminPage />, meta: { title: "Admin" } },
+          { path: "/chat", element: <Navigate to="/agents" replace /> },
+          { path: "/analytics", element: <Navigate to="/dashboard" replace /> },
+          { path: "/governance", element: <Navigate to="/dashboard" replace /> },
         ],
       },
     ],

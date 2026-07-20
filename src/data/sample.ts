@@ -57,18 +57,16 @@ export const STEPS = [
   { id: 2, label: 'Connectors', description: 'Select data sources' },
   { id: 3, label: 'Indexing', description: 'Browse, select scope, index' },
   { id: 4, label: 'AI Agents', description: 'Add agents from marketplace' },
-  { id: 5, label: 'Orchestration', description: 'Route, use, validate' },
-  { id: 6, label: 'Test', description: 'Confirm before deploy' },
-  { id: 7, label: 'Deploy', description: 'Publish to channels' },
+  { id: 5, label: 'Orchestration', description: 'Arrange agents and test' },
 ] as const
 
 export const CLOUD_CONNECTORS: Connector[] = [
-  { id: 'sharepoint', name: 'SharePoint', description: 'Microsoft 365 documents and libraries', auth: 'Microsoft Graph / Entra ID', deployment: 'cloud', category: 'Files' },
-  { id: 'azure-blob', name: 'Azure Blob Storage', description: 'Azure document and file storage', auth: 'Storage account / SAS', deployment: 'cloud', category: 'Files' },
-  { id: 'teams-files', name: 'Microsoft Teams Files', description: 'Files shared in Teams channels', auth: 'Microsoft Graph', deployment: 'cloud', category: 'Files' },
+  { id: 'sharepoint', name: 'Document Library', description: 'Enterprise documents and libraries', auth: 'OAuth / SSO', deployment: 'cloud', category: 'Files' },
+  { id: 'azure-blob', name: 'Object Storage', description: 'Cloud document and file storage', auth: 'Storage account / SAS', deployment: 'cloud', category: 'Files' },
+  { id: 'teams-files', name: 'Team Files', description: 'Files shared in team channels', auth: 'OAuth', deployment: 'cloud', category: 'Files' },
   { id: 'file-upload', name: 'File Upload', description: 'Manual document upload', auth: 'Local upload', deployment: 'cloud', category: 'Files' },
-  { id: 'azure-sql', name: 'Azure SQL Database', description: 'Structured enterprise data', auth: 'SQL connection string', deployment: 'cloud', category: 'Databases' },
-  { id: 'onelake', name: 'OneLake / Data Lake', description: 'Unified analytics data lake', auth: 'Azure AD', deployment: 'cloud', category: 'Databases' },
+  { id: 'azure-sql', name: 'SQL Database', description: 'Structured enterprise data', auth: 'SQL connection string', deployment: 'cloud', category: 'Databases' },
+  { id: 'onelake', name: 'Data Lake', description: 'Unified analytics data lake', auth: 'SSO', deployment: 'cloud', category: 'Databases' },
   { id: 'rest-api', name: 'REST API', description: 'Custom API endpoints', auth: 'API key / OAuth', deployment: 'cloud', category: 'Apps' },
 ]
 
@@ -84,9 +82,9 @@ export const OPENSOURCE_CONNECTORS: Connector[] = [
 
 export const CONNECTOR_CONFIG: Record<string, { label: string; value: string }[]> = {
   sharepoint: [
-    { label: 'SharePoint Site URL', value: 'https://contoso.sharepoint.com/sites/knowledge' },
+    { label: 'Library URL', value: 'https://docs.contoso.com/sites/knowledge' },
     { label: 'Document Library', value: 'Shared Documents' },
-    { label: 'Permission Sync', value: 'Graph API permissions' },
+    { label: 'Permission Sync', value: 'API permissions' },
   ],
   'azure-blob': [
     { label: 'Storage Account', value: 'corpsearchdata' },
@@ -122,7 +120,7 @@ export const SAMPLE_SAVED_CONNECTORS: SavedConnector[] = [
     deployment: 'cloud',
     validated: true,
     savedAt: '7/3/26, 2:15 PM',
-    detail: 'contoso.sharepoint.com/sites/knowledge',
+    detail: 'docs.contoso.com/sites/knowledge',
     lastTestedAt: '7/3/26, 2:14 PM',
     status: 'indexed',
     documentCount: 4820,
@@ -178,7 +176,7 @@ export const SAMPLE_SAVED_CONNECTORS: SavedConnector[] = [
 
 export const MARKETPLACE_AGENTS: MarketplaceAgent[] = [
   { id: 'postgres-agent', name: 'postgres-agent', version: 7, type: 'prompt', createdOn: '7/3/26, 3:17 PM', description: 'Answers questions from PostgreSQL enterprise data.', model: 'gpt-4o-mini', searchIndex: 'postgres-index' },
-  { id: 'sharepoint-agent', name: 'Sharepoint-agent', version: 3, type: 'prompt', createdOn: '7/2/26, 11:00 AM', description: 'Searches SharePoint document libraries and pages.', model: 'gpt-4o-mini', searchIndex: 'sharepoint-index' },
+  { id: 'sharepoint-agent', name: 'Document-Library-Agent', version: 3, type: 'prompt', createdOn: '7/2/26, 11:00 AM', description: 'Searches document libraries and knowledge pages.', model: 'gpt-4o-mini', searchIndex: 'document-library-index' },
   { id: 'byod-agent', name: 'BYOD-agent', version: 4, type: 'prompt', createdOn: '6/28/26, 4:45 PM', description: 'Bring-your-own-data search across uploaded files.', model: 'gpt-4o-mini', searchIndex: 'byod-index' },
   { id: 'engineering-table-agent', name: 'Engineering-Table-Agent', version: 5, type: 'prompt', createdOn: '6/25/26, 9:20 AM', description: 'Answers questions by interpreting engineering tables and specifications.', model: 'gpt-4o-mini', searchIndex: 'engineering-tables' },
   { id: 'engineering-drawing-agent', name: 'Engineering-Drawing-Agent', version: 4, type: 'prompt', createdOn: '6/29/26, 4:01 PM', description: 'Answers questions related to engineering drawings, diagrams, and assembly views.', model: 'gpt-4o-mini', searchIndex: 'byod-index', instructions: 'You are an Engineering Drawing and Diagram Expert. Answer questions related to engineering drawings, figures, diagrams, and layouts.' },
@@ -246,19 +244,19 @@ export const DEFAULT_ORCH_GRAPH: OrchGraphNode[] = [
     role: 'Supervisor node',
     model: 'gpt-4o',
     instructions:
-      'Classify the request topic, call the matching specialist agent, then merge answers and preserve citations from Azure AI Search.',
+      'Classify the request topic, call the matching specialist agent, then merge answers and preserve citations from enterprise search.',
     scopes: ['Contracts', 'Finance', 'Engineering', 'Policies'],
   },
   {
     id: 'sharepoint-agent',
     kind: 'worker',
     agentId: 'sharepoint-agent',
-    label: 'SharePoint agent',
+    label: 'Document Library agent',
     role: 'Worker node',
     sub: 'Corp intranet & policies',
     model: 'gpt-4o-mini',
     instructions:
-      'Answer questions using SharePoint libraries only. Prefer Contracts and Policies folders. Always cite document title and path.',
+      'Answer questions using document libraries only. Prefer Contracts and Policies folders. Always cite document title and path.',
     scopes: ['Contracts', 'Policies'],
   },
   {
@@ -303,7 +301,7 @@ export const ORCH_TEST_SCRIPTS: OrchTestScript[] = [
   {
     domain: 'Contracts',
     query: "Show ABC Vendor contracts expiring in the next 90 days and any open POs.",
-    routedTo: 'SharePoint agent',
+    routedTo: 'Document Library agent',
     answer:
       'ABC Vendor has 2 contracts in Shared Documents/Contracts expiring by Oct 2026. PO-88421 ($42,000) is still open against Contract_ABC_2024.pdf.',
     cites: ['Contract_ABC_2024.pdf', 'PO-88421.xlsx'],
@@ -327,7 +325,7 @@ export const ORCH_TEST_SCRIPTS: OrchTestScript[] = [
   {
     domain: 'Policies',
     query: "What's our current parental leave policy for primary caregivers?",
-    routedTo: 'SharePoint agent',
+    routedTo: 'Document Library agent',
     answer:
       'Parental leave is 16 weeks paid for primary caregivers and 6 weeks for secondary caregivers, effective this fiscal year (HR Policy library).',
     cites: ['HR Policy.pdf §4.2'],
@@ -335,7 +333,7 @@ export const ORCH_TEST_SCRIPTS: OrchTestScript[] = [
 ]
 
 export const ORCH_VALIDATION_ROWS: OrchValidationRow[] = [
-  { agentId: 'sharepoint-agent', name: 'SharePoint agent', retrieval: 'pass', citations: 'pass', routing: 'pass', scope: 'pass' },
+  { agentId: 'sharepoint-agent', name: 'Document Library agent', retrieval: 'pass', citations: 'pass', routing: 'pass', scope: 'pass' },
   { agentId: 'byod-agent', name: 'Finance archives agent', retrieval: 'pass', citations: 'pass', routing: 'pass', scope: 'pass' },
   { agentId: 'engineering-drawing-agent', name: 'Engineering Drawing agent', retrieval: 'pass', citations: 'warn', routing: 'pass', scope: 'pass' },
   { agentId: 'engineering-table-agent', name: 'Engineering Table agent', retrieval: 'pass', citations: 'pass', routing: 'warn', scope: 'pass' },
@@ -343,8 +341,8 @@ export const ORCH_VALIDATION_ROWS: OrchValidationRow[] = [
 
 export const CHANNELS: Channel[] = [
   { id: 'web', name: 'Web App', description: 'Enterprise search portal' },
-  { id: 'teams', name: 'Microsoft Teams', description: 'Teams bot experience' },
-  { id: 'copilot', name: 'Copilot Studio', description: 'Copilot extension' },
+  { id: 'teams', name: 'Team Workspace', description: 'Team bot experience' },
+  { id: 'copilot', name: 'AI Assistant', description: 'Embedded assistant experience' },
   { id: 'api', name: 'REST API', description: 'Integrate with other apps' },
 ]
 
@@ -359,10 +357,10 @@ export const EXAMPLE_QUESTIONS = [
 export const TEST_RESULT = {
   retrieval: {
     status: 'pass' as const,
-    summary: 'Relevant chunks retrieved from SharePoint and invoice index.',
+    summary: 'Relevant chunks retrieved from document library and invoice index.',
     score: '0.87',
     chunks: 8,
-    indexes: ['SharePoint', 'Invoice'],
+    indexes: ['Document Library', 'Invoice'],
   },
   routing: {
     status: 'pass' as const,
@@ -402,7 +400,7 @@ export function getConnectorById(id: string): Connector | undefined {
 }
 
 export function getPipelineStages(deployment: DeploymentType, connectorNames: string[], agentNames: string[], channelNames: string[]) {
-  const indexLabel = deployment === 'cloud' ? 'Azure AI Search' : 'OpenSearch'
+  const indexLabel = deployment === 'cloud' ? 'Enterprise Search' : 'OpenSearch'
   const orchestrationLabel = 'LangGraph Supervisor'
   return [
     { title: 'Connected Sources', sub: `${connectorNames.length} configured`, pills: connectorNames, tone: 'info' as const },

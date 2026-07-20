@@ -29,7 +29,6 @@ export default function NewAgentPage() {
   const [values, setValues] = useState<AgentPlaygroundValues>({
     name: "",
     description: "",
-    model: "gpt-4o-mini",
     instructions: "",
     searchIndex: "byod-index",
     externalUrl: "",
@@ -60,7 +59,6 @@ export default function NewAgentPage() {
       type,
       createdOn: new Date().toLocaleString(),
       description: values.description.trim() || `Custom ${values.mode} agent.`,
-      model: type !== "external" ? values.model : undefined,
       instructions: values.instructions.trim() || undefined,
       searchIndex: type === "prompt" ? values.searchIndex : undefined,
     };

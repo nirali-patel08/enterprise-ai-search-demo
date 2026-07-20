@@ -41,23 +41,6 @@ export default function AgentsPage() {
         }
       />
 
-      <div className="ds-cat-tabs ds-cat-tabs--pill mb-4 w-fit">
-        {["Agents", "Routines (Preview)", "Workflows (Preview)"].map((tab, i) => (
-          <button
-            key={tab}
-            type="button"
-            className={`ds-cat-tab ${i === 0 ? "ds-cat-tab--active" : ""}`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      <div className="route-section mb-4 !p-3 text-[13px] text-black/60">
-        <span className="font-semibold text-black">Ask AI:</span> What are common use cases for an
-        agent? · What RBAC roles do I need? · Is there support for multi-agent flows?
-      </div>
-
       <WizardPanel className="overflow-hidden p-0" bodyClassName="p-0">
         <div className="overflow-x-auto">
           <table className="ds-table ds-table--defined w-full min-w-[720px]">
@@ -72,14 +55,13 @@ export default function AgentsPage() {
             </thead>
             <tbody>
               {agents.map((agent) => (
-                <tr key={agent.id}>
+                <tr
+                  key={agent.id}
+                  className="cursor-pointer hover:bg-black/[0.02]"
+                  onClick={() => navigate(`/agents/${agent.id}`)}
+                >
                   <td>
-                    <Link
-                      to={`/agents/${agent.id}`}
-                      className="font-medium text-black hover:underline"
-                    >
-                      {agent.name}
-                    </Link>
+                    <span className="font-medium text-black">{agent.name}</span>
                     {agent.id.startsWith("custom-") && (
                       <Badge variant="info" className="ml-2">
                         Custom

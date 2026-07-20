@@ -1,12 +1,9 @@
-import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
-import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import ManageSearchOutlinedIcon from "@mui/icons-material/ManageSearchOutlined";
 import RadioButtonCheckedRoundedIcon from "@mui/icons-material/RadioButtonCheckedRounded";
 import RadioButtonUncheckedRoundedIcon from "@mui/icons-material/RadioButtonUncheckedRounded";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import { Tooltip } from "@mui/material";
 import { useState } from "react";
@@ -26,11 +23,8 @@ const ICON_SX = { fontSize: 20 } as const;
 const NAV_ITEMS: SidebarItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: <GridViewOutlinedIcon sx={ICON_SX} /> },
   { label: "AI Search Builder", href: "/builder", icon: <ManageSearchOutlinedIcon sx={ICON_SX} /> },
-  { label: "AI Chat", href: "/chat", icon: <ForumOutlinedIcon sx={ICON_SX} /> },
   { label: "Connectors", href: "/connectors", icon: <HubOutlinedIcon sx={ICON_SX} /> },
   { label: "Agent Marketplace", href: "/agents", icon: <SmartToyOutlinedIcon sx={ICON_SX} /> },
-  { label: "Analytics", href: "/analytics", icon: <InsightsOutlinedIcon sx={ICON_SX} /> },
-  { label: "Governance", href: "/governance", icon: <ShieldOutlinedIcon sx={ICON_SX} /> },
 ];
 
 const BOTTOM_ITEMS: SidebarItem[] = [

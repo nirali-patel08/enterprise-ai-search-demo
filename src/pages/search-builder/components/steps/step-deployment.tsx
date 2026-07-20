@@ -19,15 +19,15 @@ const DEPLOY_OPTIONS: {
 }[] = [
   {
     id: "cloud",
-    title: "Cloud (Azure) deployment",
-    desc: "Microsoft Foundry, Azure AI Search, SharePoint, Blob, SQL, and Teams integrations.",
-    nextPreview: "SharePoint, Azure Blob, Azure SQL, OneLake, Teams Files, REST API",
+    title: "Cloud deployment",
+    desc: "Managed cloud services, enterprise search, document libraries, object storage, SQL, and team integrations.",
+    nextPreview: "Document Library, Object Storage, SQL Database, Data Lake, Team Files, REST API",
     icon: <CloudOutlinedIcon sx={{ fontSize: 22 }} />,
     connectors: CLOUD_CONNECTORS.filter((c) =>
       ["sharepoint", "azure-blob", "azure-sql", "onelake", "teams-files", "rest-api"].includes(c.id),
     ).map((c) => ({
       id: c.id,
-      label: c.name.replace(" Storage", "").replace(" Database", "").replace("Microsoft ", ""),
+      label: c.name.replace(" Storage", "").replace(" Database", "").replace("Team ", ""),
     })),
   },
   {

@@ -28,9 +28,9 @@ export type DemoPlaygroundTurn = {
 };
 
 const CONNECTORS = {
-  sharepoint: "Corp intranet (SharePoint)",
-  financeBlob: "Finance archives (Azure Blob)",
-  enterpriseSql: "EnterpriseKnowledge (Azure SQL)",
+  sharepoint: "Corp intranet (Document Library)",
+  financeBlob: "Finance archives (Object Storage)",
+  enterpriseSql: "EnterpriseKnowledge (SQL Database)",
   postgres: "orders_prod_db (PostgreSQL)",
 } as const;
 
@@ -47,9 +47,9 @@ export const DEMO_PLAYGROUND_TURNS: DemoPlaygroundTurn[] = [
     agentId: "sharepoint-agent",
     domain: "Contracts",
     query: "Show ABC Vendor contracts expiring in the next 90 days and any open POs.",
-    routedTo: "SharePoint agent",
+    routedTo: "Document Library agent",
     model: "gpt-4o-mini",
-    searchIndex: "sharepoint-index",
+    searchIndex: "document-library-index",
     connector: CONNECTORS.sharepoint,
     sourcePaths: [INDEXED_PATHS.contracts, INDEXED_PATHS.finance],
     answer:
@@ -162,9 +162,9 @@ export const DEMO_PLAYGROUND_TURNS: DemoPlaygroundTurn[] = [
     agentId: "sharepoint-agent",
     domain: "Policies",
     query: "What's our current parental leave policy for primary caregivers?",
-    routedTo: "SharePoint agent",
+    routedTo: "Document Library agent",
     model: "gpt-4o-mini",
-    searchIndex: "sharepoint-index",
+    searchIndex: "document-library-index",
     connector: CONNECTORS.sharepoint,
     sourcePaths: ["enterprise-docs/hr/policies/"],
     answer:
@@ -185,9 +185,9 @@ export const DEMO_PLAYGROUND_TURNS: DemoPlaygroundTurn[] = [
     agentId: "sharepoint-agent",
     domain: "Procurement",
     query: "What is the approval policy for high-value procurement?",
-    routedTo: "SharePoint agent",
+    routedTo: "Document Library agent",
     model: "gpt-4o-mini",
-    searchIndex: "sharepoint-index",
+    searchIndex: "document-library-index",
     connector: CONNECTORS.sharepoint,
     sourcePaths: [`${INDEXED_PATHS.finance}/Approval_Policy.pdf`],
     answer:
@@ -253,7 +253,7 @@ export const DEMO_PLAYGROUND_TURNS: DemoPlaygroundTurn[] = [
     query: "Show unpaid invoices related to contracts expiring next month for ABC Vendor.",
     routedTo: "Document-Router-Agent",
     model: "gpt-4o",
-    searchIndex: "sharepoint-index",
+    searchIndex: "document-library-index",
     connector: CONNECTORS.sharepoint,
     answer:
       "For ABC Vendor, one contract is expiring next month. It has an unpaid invoice, INV-22019 for $45,200, tied to purchase order PO-88421 ($42,000).",

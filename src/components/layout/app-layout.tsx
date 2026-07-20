@@ -53,7 +53,7 @@ export const AppLayout = () => {
           showMenuButton
           onMenuToggle={() => setMobileSidebarOpen((o) => !o)}
         />
-        <main id="main-content" className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto pb-6">
+        <main id="main-content" className="relative z-0 flex min-h-0 flex-1 flex-col overflow-y-auto pb-6">
           <Outlet />
         </main>
       </div>

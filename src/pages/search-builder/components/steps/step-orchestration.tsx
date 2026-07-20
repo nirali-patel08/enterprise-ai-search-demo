@@ -1,10 +1,43 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  Background,
+  BackgroundVariant,
+  Controls,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  Handle,
+  Position,
+  type Edge,
+  type Node,
+  type Connection,
+  type NodeProps,
+  type NodeChange,
+  type EdgeChange,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
-import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
+import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import CallSplitRoundedIcon from "@mui/icons-material/CallSplitRounded";
+import PanToolAltRoundedIcon from "@mui/icons-material/PanToolAltRounded";
+import DataObjectRoundedIcon from "@mui/icons-material/DataObjectRounded";
+import HubRoundedIcon from "@mui/icons-material/HubRounded";
+import InputRoundedIcon from "@mui/icons-material/InputRounded";
+import TerminalRoundedIcon from "@mui/icons-material/TerminalRounded";
+import ExpandLessRoundedIcon from "@mui/icons-material/ExpandLessRounded";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
   getOrchestrationPresets,
   resolveDemoReply,
@@ -13,21 +46,32 @@ import {
 import {
   DEFAULT_ORCH_GRAPH,
   ORCH_SCOPES,
-  ORCH_VALIDATION_ROWS,
   ORCHESTRATION_OPTIONS,
-  type OrchGraphNode,
   type OrchScope,
-  type OrchValidationRow,
 } from "@/data/sample";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { useAgents } from "@/hooks/useAgents";
 import { useBuilderStore } from "@/store/builder-store";
-import { Field, Textarea, WizardPanel } from "../wizard-ui";
+import { Field, Textarea } from "../wizard-ui";
 
-type StudioView = "orchestrate" | "use" | "validate";
+// ─── Types ───────────────────────────────────────────────────────
+
+type NodeKind = "query" | "orchestrator" | "agent" | "condition" | "human" | "variable";
+
+type FlowData = {
+  label: string;
+  sub?: string;
+  kind: NodeKind;
+  instructions?: string;
+  scopes?: OrchScope[];
+  agentId?: string;
+  active?: boolean;
+  [key: string]: unknown;
+};
+
+type FlowNode = Node<FlowData>;
 
 type ChatMsg = {
   id: string;
@@ -40,28 +84,165 @@ type ChatMsg = {
   followUps?: string[];
 };
 
-const STUDIO_TABS: { id: StudioView; label: string; n: number; hint: string }[] = [
-  { id: "orchestrate", label: "Orchestrate agents", n: 1, hint: "Connect specialist agents on the canvas" },
-  { id: "use", label: "Use", n: 2, hint: "Ask sample Contoso questions and check routing" },
-  { id: "validate", label: "Validate", n: 3, hint: "Confirm every agent stays in its data scope" },
-];
+type TraceEntry = {
+  id: string;
+  time: string;
+  kind: "prompt" | "route" | "payload" | "response" | "info";
+  label: string;
+  detail?: string;
+};
 
-function nowLabel() {
-  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+// ─── Custom nodes ────────────────────────────────────────────────
 
-function StatusChip({ status }: { status: OrchValidationRow["retrieval"] }) {
-  const label = status === "pass" ? "Pass" : status === "warn" ? "Review" : "Fail";
+const KIND_ICONS: Record<NodeKind, React.ReactNode> = {
+  query: <InputRoundedIcon sx={{ fontSize: 14 }} />,
+  orchestrator: <HubRoundedIcon sx={{ fontSize: 14 }} />,
+  agent: <SmartToyOutlinedIcon sx={{ fontSize: 14 }} />,
+  condition: <CallSplitRoundedIcon sx={{ fontSize: 14 }} />,
+  human: <PanToolAltRoundedIcon sx={{ fontSize: 14 }} />,
+  variable: <DataObjectRoundedIcon sx={{ fontSize: 14 }} />,
+};
+
+const KIND_TAGS: Record<NodeKind, string> = {
+  query: "Input",
+  orchestrator: "Orchestrator",
+  agent: "Agent",
+  condition: "If / Else",
+  human: "Human approval",
+  variable: "Set variable",
+};
+
+function FlowNodeCard({ data, selected }: NodeProps<FlowNode>) {
+  const kind = data.kind;
   return (
-    <span className={cn("orch-studio__chip", `orch-studio__chip--${status}`)}>{label}</span>
+    <div
+      className={cn(
+        "orch-flow__node",
+        `orch-flow__node--${kind}`,
+        selected && "orch-flow__node--selected",
+        data.active && "orch-flow__node--active",
+      )}
+    >
+      {kind !== "query" && <Handle type="target" position={Position.Top} className="orch-flow__handle" />}
+      <div className="orch-flow__node-head">
+        <span className="orch-flow__node-icon">{KIND_ICONS[kind]}</span>
+        <span className="orch-flow__node-tag">{KIND_TAGS[kind]}</span>
+      </div>
+      <div className="orch-flow__node-name">{data.label}</div>
+      {data.sub && <div className="orch-flow__node-sub">{data.sub}</div>}
+      <Handle type="source" position={Position.Bottom} className="orch-flow__handle" />
+    </div>
   );
 }
 
-export const StepOrchestration = () => {
+const nodeTypes = {
+  flowNode: FlowNodeCard,
+};
+
+// ─── Initial graph from sample data ──────────────────────────────
+
+function buildInitialGraph(): { nodes: FlowNode[]; edges: Edge[] } {
+  const nodes: FlowNode[] = [];
+  const edges: Edge[] = [];
+
+  const query = DEFAULT_ORCH_GRAPH.find((n) => n.kind === "query");
+  const supervisor = DEFAULT_ORCH_GRAPH.find((n) => n.kind === "supervisor");
+  const workers = DEFAULT_ORCH_GRAPH.filter((n) => n.kind === "worker");
+
+  if (query) {
+    nodes.push({
+      id: query.id,
+      type: "flowNode",
+      position: { x: 320, y: 10 },
+      data: { label: query.label, kind: "query" },
+    });
+  }
+  if (supervisor) {
+    nodes.push({
+      id: supervisor.id,
+      type: "flowNode",
+      position: { x: 300, y: 130 },
+      data: {
+        label: supervisor.label,
+        kind: "orchestrator",
+        instructions: supervisor.instructions,
+        scopes: supervisor.scopes,
+        agentId: supervisor.agentId,
+      },
+    });
+    if (query) {
+      edges.push({ id: `${query.id}->${supervisor.id}`, source: query.id, target: supervisor.id });
+    }
+  }
+  workers.forEach((w, i) => {
+    nodes.push({
+      id: w.id,
+      type: "flowNode",
+      position: { x: 40 + (i % 4) * 200, y: 290 + Math.floor(i / 4) * 130 },
+      data: {
+        label: w.label,
+        sub: w.sub,
+        kind: "agent",
+        instructions: w.instructions,
+        scopes: w.scopes,
+        agentId: w.agentId,
+      },
+    });
+    if (supervisor) {
+      edges.push({ id: `${supervisor.id}->${w.id}`, source: supervisor.id, target: w.id });
+    }
+  });
+
+  return { nodes, edges };
+}
+
+const INITIAL = buildInitialGraph();
+
+const CONTROL_ITEMS: { kind: NodeKind; label: string; sub: string }[] = [
+  { kind: "condition", label: "If / Else", sub: "Branch on a field in the agent output" },
+  { kind: "human", label: "Human approval", sub: "Pause until a person approves" },
+  { kind: "variable", label: "Set variable", sub: "Store a value for later nodes" },
+];
+
+type OrchPhase = "build" | "test";
+
+type AddPanel = "agent" | "logic" | null;
+
+const WORKFLOW_STEPS = [
+  {
+    id: 1,
+    title: "Add agents",
+    description: "Click Add agent to place specialists on the canvas.",
+  },
+  {
+    id: 2,
+    title: "Configure agents",
+    description: "Click a node to set its instructions and delegated sub-tasks.",
+  },
+  {
+    id: 3,
+    title: "Add logic (optional)",
+    description: "Click Add logic for if/else, human approval, or variables.",
+  },
+  {
+    id: 4,
+    title: "Save & test",
+    description: "Save the workflow, then check it in the playground.",
+  },
+] as const;
+
+function nowLabel() {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+// ─── Studio ──────────────────────────────────────────────────────
+
+function OrchestrationStudio() {
   const deploymentType = useBuilderStore((s) => s.deploymentType);
   const orchestrationId = useBuilderStore((s) => s.orchestrationId);
   const selectedAgentIds = useBuilderStore((s) => s.selectedAgentIds);
   const setOrchestrationId = useBuilderStore((s) => s.setOrchestrationId);
+  const setOrchestrationSaved = useBuilderStore((s) => s.setOrchestrationSaved);
   const setTestRan = useBuilderStore((s) => s.setTestRan);
 
   const marketplace = useAgents();
@@ -69,24 +250,70 @@ export const StepOrchestration = () => {
     (o) => o.deployment === deploymentType || o.deployment === "both",
   );
 
-  const [view, setView] = useState<StudioView>("orchestrate");
-  const [selectedNodeId, setSelectedNodeId] = useState("supervisor");
-  const [graph, setGraph] = useState<OrchGraphNode[]>(DEFAULT_ORCH_GRAPH);
+  const [nodes, setNodes, onNodesChangeInternal] = useNodesState<FlowNode>(INITIAL.nodes);
+  const [edges, setEdges, onEdgesChangeInternal] = useEdgesState<Edge>(INITIAL.edges);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [phase, setPhase] = useState<OrchPhase>("build");
+  const [addPanel, setAddPanel] = useState<AddPanel>(null);
+  const [agentSearch, setAgentSearch] = useState("");
+
   const [chat, setChat] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [validating, setValidating] = useState(false);
-  const [valRows, setValRows] = useState<OrchValidationRow[]>(ORCH_VALIDATION_ROWS);
-  const [readyPct, setReadyPct] = useState(90);
-  const [readyLabel, setReadyLabel] = useState("1 warning to review before rollout");
+  const [traces, setTraces] = useState<TraceEntry[]>([]);
+  const [tracesOpen, setTracesOpen] = useState(false);
+
+  const { screenToFlowPosition, fitView } = useReactFlow();
+  const canvasRef = useRef<HTMLDivElement>(null);
   const chatLogRef = useRef<HTMLDivElement>(null);
-  const replyTimer = useRef<number | null>(null);
+  const timers = useRef<number[]>([]);
+
+  const reflowCanvas = useCallback(() => {
+    requestAnimationFrame(() => {
+      fitView({ padding: 0.15, duration: 220 });
+    });
+  }, [fitView]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(reflowCanvas, 320);
+    return () => window.clearTimeout(timer);
+  }, [phase, reflowCanvas]);
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => reflowCanvas());
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [reflowCanvas]);
+
+  const markUnsaved = useCallback(() => {
+    setOrchestrationSaved(false);
+    setTestRan(false);
+    setPhase("build");
+  }, [setOrchestrationSaved, setTestRan]);
+
+  const onNodesChange = useCallback(
+    (changes: NodeChange<FlowNode>[]) => {
+      const hasWorkflowChange = changes.some((change) => change.type !== "select");
+      if (hasWorkflowChange) markUnsaved();
+      onNodesChangeInternal(changes);
+    },
+    [markUnsaved, onNodesChangeInternal],
+  );
+
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      const hasWorkflowChange = changes.some((change) => change.type !== "select");
+      if (hasWorkflowChange) markUnsaved();
+      onEdgesChangeInternal(changes);
+    },
+    [markUnsaved, onEdgesChangeInternal],
+  );
 
   useEffect(() => {
     const valid = patterns.some((p) => p.id === orchestrationId);
-    if ((!orchestrationId || !valid) && patterns[0]) {
-      setOrchestrationId(patterns[0].id);
-    }
+    if ((!orchestrationId || !valid) && patterns[0]) setOrchestrationId(patterns[0].id);
   }, [orchestrationId, patterns, setOrchestrationId]);
 
   useEffect(() => {
@@ -95,51 +322,235 @@ export const StepOrchestration = () => {
   }, [chat, sending]);
 
   useEffect(() => {
-    return () => {
-      if (replyTimer.current) window.clearTimeout(replyTimer.current);
-    };
+    return () => timers.current.forEach((t) => window.clearTimeout(t));
   }, []);
 
-  /** Contoso routing graph — specialists from studio + any agents added from marketplace. */
-  const activeWorkers = useMemo(() => graph.filter((n) => n.kind === "worker"), [graph]);
+  const selectedNode = nodes.find((n) => n.id === selectedId) ?? null;
+  const agentNodesOnCanvas = useMemo(
+    () => new Set(nodes.filter((n) => n.data.agentId).map((n) => n.data.agentId as string)),
+    [nodes],
+  );
+  // ── Canvas interactions ──
+  const onConnect = useCallback(
+    (conn: Connection) => {
+      setEdges((eds) => addEdge(conn, eds));
+      markUnsaved();
+    },
+    [setEdges, markUnsaved],
+  );
 
-  const supervisor = graph.find((n) => n.kind === "supervisor")!;
-  const queryNode = graph.find((n) => n.kind === "query")!;
-  const selectedNode = graph.find((n) => n.id === selectedNodeId) ?? supervisor;
+  const nextNodePosition = useCallback(() => {
+    return screenToFlowPosition({
+      x: window.innerWidth / 2 + (Math.random() * 80 - 40),
+      y: window.innerHeight / 2 + (Math.random() * 80 - 40),
+    });
+  }, [screenToFlowPosition]);
 
-  const updateNode = (id: string, patch: Partial<OrchGraphNode>) => {
-    setGraph((prev) => prev.map((n) => (n.id === id ? { ...n, ...patch } : n)));
+  const closeAddPanel = useCallback(() => {
+    setAddPanel(null);
+    setAgentSearch("");
+  }, []);
+
+  const openAddPanel = useCallback(
+    (panel: Exclude<AddPanel, null>) => {
+      setAddPanel((prev) => (prev === panel ? null : panel));
+      setAgentSearch("");
+      setSelectedId(null);
+    },
+    [],
+  );
+
+  const addAgentNode = useCallback(
+    (agentId: string) => {
+      const agent = marketplace.find((a) => a.id === agentId);
+      if (!agent) return;
+      const position = nextNodePosition();
+      const node: FlowNode = {
+        id: `${agent.id}-${Date.now()}`,
+        type: "flowNode",
+        position,
+        data: {
+          label: agent.name,
+          sub: agent.description.slice(0, 42),
+          kind: "agent",
+          agentId: agent.id,
+          instructions: agent.instructions ?? agent.description,
+          scopes: ["Policies"],
+        },
+      };
+      setNodes((nds) => [...nds, node]);
+      const orch = nodes.find((n) => n.data.kind === "orchestrator");
+      if (orch) {
+        setEdges((eds) =>
+          addEdge({ source: orch.id, target: node.id, sourceHandle: null, targetHandle: null }, eds),
+        );
+      }
+      setSelectedId(node.id);
+      closeAddPanel();
+      markUnsaved();
+      toast.success(`Added ${agent.name}`);
+    },
+    [marketplace, nextNodePosition, nodes, setNodes, setEdges, closeAddPanel, markUnsaved],
+  );
+
+  const addControlNode = useCallback(
+    (kind: NodeKind) => {
+      const item = CONTROL_ITEMS.find((c) => c.kind === kind);
+      const id = `${kind}-${Date.now()}`;
+      const node: FlowNode = {
+        id,
+        type: "flowNode",
+        position: nextNodePosition(),
+        data: { label: item?.label ?? kind, sub: item?.sub, kind },
+      };
+      setNodes((nds) => [...nds, node]);
+      setSelectedId(id);
+      closeAddPanel();
+      markUnsaved();
+    },
+    [nextNodePosition, setNodes, closeAddPanel, markUnsaved],
+  );
+
+  const updateNodeData = (id: string, patch: Partial<FlowData>) => {
+    setNodes((nds) =>
+      nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)),
+    );
+    markUnsaved();
+  };
+
+  const removeNode = (id: string) => {
+    setNodes((nds) => nds.filter((n) => n.id !== id));
+    setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+    if (selectedId === id) setSelectedId(null);
+    markUnsaved();
   };
 
   const toggleScope = (id: string, scope: OrchScope) => {
-    const node = graph.find((n) => n.id === id);
-    if (!node || node.kind === "query") return;
-    const scopes = node.scopes.includes(scope)
-      ? node.scopes.filter((s) => s !== scope)
-      : [...node.scopes, scope];
-    updateNode(id, { scopes });
+    const node = nodes.find((n) => n.id === id);
+    if (!node) return;
+    const scopes = node.data.scopes ?? [];
+    updateNodeData(id, {
+      scopes: scopes.includes(scope) ? scopes.filter((s) => s !== scope) : [...scopes, scope],
+    });
+  };
+
+  const saveOrchestration = () => {
+    if (patterns[0]) setOrchestrationId(patterns[0].id);
+    setOrchestrationSaved(true);
+    setSelectedId(null);
+    toast.success("Workflow saved. Select Test in playground to check it.");
+  };
+
+  const runWorkflow = () => {
+    setPhase("test");
+    setChat([]);
+    setTraces([]);
+    setTracesOpen(false);
+    closeAddPanel();
+    if (!useBuilderStore.getState().orchestrationSaved) {
+      saveOrchestration();
+    }
+  };
+
+  const editWorkflow = () => {
+    setPhase("build");
+    setSelectedId(null);
+    closeAddPanel();
+  };
+
+  const isBuildPhase = phase === "build";
+  const activeStep =
+    phase === "test"
+      ? 4
+      : selectedNode && selectedNode.data.kind !== "query"
+        ? 2
+        : nodes.some((n) => n.data.kind === "condition" || n.data.kind === "human" || n.data.kind === "variable")
+          ? 3
+          : agentNodesOnCanvas.size > 0
+            ? 2
+            : 1;
+
+  // ── Execution simulation with visual tracing ──
+  const setActive = useCallback(
+    (ids: string[]) => {
+      setNodes((nds) =>
+        nds.map((n) => ({ ...n, data: { ...n.data, active: ids.includes(n.id) } })),
+      );
+      setEdges((eds) =>
+        eds.map((e) => ({
+          ...e,
+          animated: ids.includes(e.source) && ids.includes(e.target),
+        })),
+      );
+    },
+    [setNodes, setEdges],
+  );
+
+  const pushTrace = (entry: Omit<TraceEntry, "id" | "time">) => {
+    setTraces((prev) => [...prev, { ...entry, id: `t-${Date.now()}-${prev.length}`, time: nowLabel() }]);
   };
 
   const orchPresets = useMemo(() => getOrchestrationPresets(), []);
 
   const sendQuery = (query: string) => {
     const q = query.trim();
-    if (!q || sending) return;
+    if (!q || sending || phase !== "test") return;
 
-    const userMsg: ChatMsg = {
-      id: `u-${Date.now()}`,
-      role: "user",
-      text: q,
-      time: nowLabel(),
-    };
-    setChat((prev) => [...prev, userMsg]);
+    setChat((prev) => [...prev, { id: `u-${Date.now()}`, role: "user", text: q, time: nowLabel() }]);
     setInput("");
     setSending(true);
 
-    if (replyTimer.current) window.clearTimeout(replyTimer.current);
-    replyTimer.current = window.setTimeout(() => {
-      const reply = resolveDemoReply(q, { orchestrated: true });
-      const preset = orchPresets.find((p) => p.query.toLowerCase() === q.toLowerCase());
+    const reply = resolveDemoReply(q, { orchestrated: true });
+    const preset = orchPresets.find((p) => p.query.toLowerCase() === q.toLowerCase());
+
+    const queryNode = nodes.find((n) => n.data.kind === "query");
+    const orchNode = nodes.find((n) => n.data.kind === "orchestrator");
+    const agentNodes = nodes.filter((n) => n.data.kind === "agent");
+    const targetNode =
+      agentNodes.find((n) => preset && n.data.agentId === preset.agentId) ??
+      agentNodes.find((n) => reply.trace?.toLowerCase().includes(n.data.label.toLowerCase())) ??
+      agentNodes[0];
+
+    const schedule = (fn: () => void, ms: number) => {
+      timers.current.push(window.setTimeout(fn, ms));
+    };
+
+    // Visual tracing sequence: query → orchestrator → routed agent
+    if (queryNode) {
+      setActive([queryNode.id]);
+      pushTrace({ kind: "prompt", label: "User prompt received", detail: q });
+    }
+    schedule(() => {
+      if (orchNode) {
+        setActive([queryNode?.id ?? "", orchNode.id]);
+        pushTrace({
+          kind: "prompt",
+          label: `Prompt → ${orchNode.data.label}`,
+          detail: "system: classify intent, pick specialist, preserve citations",
+        });
+      }
+    }, 250);
+    schedule(() => {
+      if (targetNode) {
+        pushTrace({
+          kind: "route",
+          label: "Routing decision",
+          detail: `{ "intent": "${preset?.domain ?? "enterprise-search"}", "target": "${targetNode.data.label}" }`,
+        });
+      }
+    }, 550);
+    schedule(() => {
+      if (targetNode && orchNode) {
+        setActive([orchNode.id, targetNode.id]);
+        pushTrace({
+          kind: "payload",
+          label: `Payload → ${targetNode.data.label}`,
+          detail: `{ "query": "${q.slice(0, 60)}${q.length > 60 ? "…" : ""}", "scopes": ${JSON.stringify(targetNode.data.scopes ?? [])} }`,
+        });
+      }
+    }, 850);
+    schedule(() => {
+      setActive([]);
       setChat((prev) => [
         ...prev,
         {
@@ -153,258 +564,275 @@ export const StepOrchestration = () => {
           followUps: (preset?.followUps ?? reply.followUps).slice(0, 2),
         },
       ]);
+      pushTrace({
+        kind: "response",
+        label: `${targetNode?.data.label ?? "Agent"} responded`,
+        detail: `${(preset?.cites ?? reply.sources)?.length ?? 0} sources · answer streamed to playground`,
+      });
       setSending(false);
       setTestRan(true);
       if (!orchestrationId && patterns[0]) setOrchestrationId(patterns[0].id);
-    }, 650);
+    }, 1450);
   };
 
   const sendCustom = () => sendQuery(input);
 
-  const runValidation = () => {
-    setValidating(true);
-    window.setTimeout(() => {
-      setValRows((rows) =>
-        rows.map((r) =>
-          r.agentId === "engineering-drawing-agent" ? { ...r, citations: "pass" } : r,
-        ),
-      );
-      setReadyPct(97);
-      setReadyLabel("1 item still needs review");
-      setValidating(false);
-      setTestRan(true);
-      toast.success("Validation suite completed");
-    }, 900);
-  };
-
-  const addWorkerFromSelected = () => {
-    const used = new Set(graph.filter((n) => n.agentId).map((n) => n.agentId));
-    const next = marketplace.find((a) => selectedAgentIds.includes(a.id) && !used.has(a.id));
-    if (!next) {
-      toast.error("Select another agent in the previous step first");
-      return;
-    }
-    const node: OrchGraphNode = {
-      id: next.id,
-      kind: "worker",
-      agentId: next.id,
-      label: next.name,
-      role: "Worker node",
-      sub: next.description.slice(0, 42),
-      model: next.model ?? "gpt-4o-mini",
-      instructions: next.instructions ?? next.description,
-      scopes: ["Policies"],
-    };
-    setGraph((prev) => [...prev, node]);
-    setSelectedNodeId(node.id);
-    toast.success(`Added ${next.name} to the graph`);
-  };
-
-  const ringDeg = Math.round((readyPct / 100) * 360);
-  const activeTab = STUDIO_TABS.find((t) => t.id === view) ?? STUDIO_TABS[0];
-  const tabIndex = STUDIO_TABS.findIndex((t) => t.id === view);
-
-  const goPrev = () => {
-    if (tabIndex > 0) setView(STUDIO_TABS[tabIndex - 1].id);
-  };
-
-  const goNext = () => {
-    if (tabIndex < STUDIO_TABS.length - 1) setView(STUDIO_TABS[tabIndex + 1].id);
-  };
-
   return (
-    <section className="orch-studio">
-      <div className="orch-studio__chrome">
-        <div className="orch-studio__intro">
-          <h2 className="orch-studio__title">Agent orchestration studio</h2>
+    <section className="orch-flow">
+      <div className="orch-flow__bar">
+        <div>
+          <h2 className="orch-flow__title">
+            {isBuildPhase ? "Build workflow" : "Test in playground"}
+          </h2>
+          <p className="orch-flow__hint">
+            {isBuildPhase
+              ? "Add agents for the work, then optionally Add logic for rules. Click a node to configure it, then save & test."
+              : "Check your workflow in the playground. Nodes highlight on the canvas as each step executes."}
+          </p>
         </div>
-
-        {patterns.length > 1 && (
-          <div className="orch-studio__pattern">
-            {patterns.map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => setOrchestrationId(opt.id)}
+        <div className="orch-flow__bar-actions">
+          {isBuildPhase ? (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
                 className={cn(
-                  "orch-studio__pattern-card ds-glass-option",
-                  orchestrationId === opt.id && "ds-glass-option--selected",
+                  "orch-flow__btn-add orch-flow__btn-add--agent",
+                  addPanel === "agent" && "orch-flow__btn-add--active",
                 )}
+                onClick={() => openAddPanel("agent")}
               >
-                <div className="orch-studio__pattern-name">{opt.name}</div>
-                <div className="orch-studio__pattern-desc">{opt.description}</div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="orch-studio__steps">
-          <div className="orch-studio__steps-row">
-            <div className="orch-studio__tabs ds-cat-tabs ds-cat-tabs--pill" role="tablist" aria-label="Orchestration studio view">
-              {STUDIO_TABS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={view === t.id}
-                  onClick={() => setView(t.id)}
-                  className={cn("ds-cat-tab", view === t.id && "ds-cat-tab--active")}
+                <SmartToyOutlinedIcon sx={{ fontSize: 16 }} />
+                Add agent
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className={cn(
+                  "orch-flow__btn-add orch-flow__btn-add--logic",
+                  addPanel === "logic" && "orch-flow__btn-add--active",
+                )}
+                onClick={() => openAddPanel("logic")}
+              >
+                <CallSplitRoundedIcon sx={{ fontSize: 16 }} />
+                Add logic
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="orch-flow__btn-add orch-flow__btn-add--save"
+                onClick={saveOrchestration}
+              >
+                <SaveOutlinedIcon sx={{ fontSize: 16 }} />
+                Save
+              </Button>
+              <Button variant="primary" size="sm" onClick={runWorkflow}>
+                <PlayArrowRoundedIcon sx={{ fontSize: 16 }} />
+                Save & test
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="orch-flow__btn-add orch-flow__btn-add--edit"
+                onClick={editWorkflow}
+              >
+                <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                Edit workflow
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => { setChat([]); setTraces([]); }}>
+                <PlayArrowRoundedIcon sx={{ fontSize: 16 }} />
+                Test in playground
+              </Button>
+              {chat.length > 0 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="orch-flow__btn-add orch-flow__btn-add--new"
+                  onClick={() => { setChat([]); setTraces([]); }}
                 >
-                  <span className="ds-cat-tab__count">{t.n}</span>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="orch-studio__pager" aria-label="Step navigation">
-              <button
-                type="button"
-                className="orch-studio__pager-btn"
-                onClick={goPrev}
-                disabled={tabIndex <= 0}
-                aria-label="Previous step"
-              >
-                <ChevronLeftRoundedIcon sx={{ fontSize: 18 }} />
-              </button>
-              <span className="orch-studio__pager-num">
-                {tabIndex + 1}
-                <span className="orch-studio__pager-of">/{STUDIO_TABS.length}</span>
-              </span>
-              <button
-                type="button"
-                className="orch-studio__pager-btn"
-                onClick={goNext}
-                disabled={tabIndex >= STUDIO_TABS.length - 1}
-                aria-label="Next step"
-              >
-                <ChevronRightRoundedIcon sx={{ fontSize: 18 }} />
-              </button>
-            </div>
-          </div>
+                  New run
+                </Button>
+              )}
+            </>
+          )}
         </div>
-        <p className="orch-studio__step-hint">{activeTab.hint}</p>
       </div>
 
-      <div className="orch-studio__body">
-        {view === "orchestrate" && (
-          <div className="orch-studio__grid">
-            <WizardPanel
-              className="orch-studio__canvas !p-4"
-              bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden"
+      <ol className="orch-flow__steps" aria-label="Orchestration workflow steps">
+        {WORKFLOW_STEPS.map((step) => {
+          const done = step.id < activeStep || (step.id === 4 && phase === "test");
+          const active = step.id === activeStep;
+          return (
+            <li
+              key={step.id}
+              className={cn(
+                "orch-flow__step",
+                done && "orch-flow__step--done",
+                active && "orch-flow__step--active",
+              )}
             >
-              <div className="orch-studio__canvas-head">
+              <span className="orch-flow__step-num">{step.id}</span>
+              <div className="min-w-0">
+                <div className="orch-flow__step-title">{step.title}</div>
+                <div className="orch-flow__step-desc">{step.description}</div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className={cn("orch-flow__layout", isBuildPhase ? "orch-flow__layout--build" : "orch-flow__layout--test")}>
+        <div className="orch-flow__canvas ds-glass" ref={canvasRef}>
+          {!isBuildPhase && (
+            <div className="orch-flow__canvas-badge">
+              <PlayArrowRoundedIcon sx={{ fontSize: 14 }} />
+              Live playground
+            </div>
+          )}
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={(_, n) => {
+              if (!isBuildPhase) return;
+              closeAddPanel();
+              setSelectedId(n.id);
+            }}
+            onPaneClick={() => {
+              setSelectedId(null);
+              closeAddPanel();
+            }}
+            nodesDraggable={isBuildPhase}
+            nodesConnectable={isBuildPhase}
+            elementsSelectable={isBuildPhase}
+            fitView
+            fitViewOptions={{ padding: 0.15 }}
+            deleteKeyCode={isBuildPhase ? ["Backspace", "Delete"] : null}
+            className="orch-flow__rf"
+          >
+            <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} color="rgba(0,0,0,0.14)" />
+            <Controls showInteractive={false} position="bottom-left" />
+          </ReactFlow>
+
+          {isBuildPhase && addPanel === "agent" && (
+            <div className="orch-flow__add-menu orch-flow__add-menu--agent">
+              <div className="orch-flow__add-menu-head">
                 <div>
-                  <h3>Routing canvas</h3>
-                  <span className="orch-studio__canvas-hint">Click a node to configure it</span>
+                  <h4>Add agent</h4>
+                  <p className="orch-flow__add-menu-help">Pick an AI agent from your project.</p>
                 </div>
-                <Button variant="secondary" size="sm" onClick={addWorkerFromSelected}>
-                  + Add agent
-                </Button>
+                <button type="button" className="orch-flow__drawer-close" onClick={closeAddPanel}>
+                  <CloseRoundedIcon sx={{ fontSize: 15 }} />
+                </button>
               </div>
 
-              <div className="orch-studio__flow">
-                <button
-                  type="button"
-                  className={cn(
-                    "orch-studio__node orch-studio__node--query",
-                    selectedNodeId === "query" && "orch-studio__node--selected",
-                  )}
-                  onClick={() => setSelectedNodeId("query")}
-                >
-                  <span className="orch-studio__node-name">{queryNode.label}</span>
-                </button>
-
-                <span className="orch-studio__connector" aria-hidden />
-
-                <button
-                  type="button"
-                  className={cn(
-                    "orch-studio__node orch-studio__node--supervisor",
-                    selectedNodeId === supervisor.id && "orch-studio__node--selected",
-                  )}
-                  onClick={() => setSelectedNodeId(supervisor.id)}
-                >
-                  <div className="orch-studio__node-role">{supervisor.role}</div>
-                  <div className="orch-studio__node-name">{supervisor.label}</div>
-                </button>
-
-                {activeWorkers.length > 0 && (
-                  <>
-                    <div className="orch-studio__fan" aria-hidden>
-                      <span className="orch-studio__fan-stem" />
-                      <span className="orch-studio__fan-bar" />
-                      <div className="orch-studio__fan-legs">
-                        {activeWorkers.map((w) => (
-                          <span key={w.id} className="orch-studio__fan-leg" />
-                        ))}
+              <div className="orch-flow__add-search">
+                <SearchRoundedIcon sx={{ fontSize: 14 }} />
+                <input
+                  className="orch-flow__add-search-input"
+                  placeholder="Search agents…"
+                  value={agentSearch}
+                  onChange={(e) => setAgentSearch(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="orch-flow__add-menu-list">
+                {marketplace
+                  .filter((a) => selectedAgentIds.includes(a.id))
+                  .filter((a) => !agentSearch || a.name.toLowerCase().includes(agentSearch.toLowerCase()))
+                  .map((a) => (
+                    <button key={a.id} type="button" className="orch-flow__add-menu-item" onClick={() => addAgentNode(a.id)}>
+                      <SmartToyOutlinedIcon sx={{ fontSize: 14 }} />
+                      <div className="min-w-0">
+                        <div className="orch-flow__add-menu-name">{a.name}</div>
+                        <div className="orch-flow__add-menu-desc">{a.description.slice(0, 50)}</div>
                       </div>
-                    </div>
-
-                    <div className="orch-studio__workers">
-                      {activeWorkers.map((w) => (
-                        <button
-                          key={w.id}
-                          type="button"
-                          className={cn(
-                            "orch-studio__node orch-studio__node--worker",
-                            selectedNodeId === w.id && "orch-studio__node--selected",
-                          )}
-                          onClick={() => setSelectedNodeId(w.id)}
-                        >
-                          <div className="orch-studio__node-role">{w.role}</div>
-                          <div className="orch-studio__node-name">{w.label}</div>
-                          {w.sub && <div className="orch-studio__node-sub">{w.sub}</div>}
-                        </button>
-                      ))}
-                    </div>
-                  </>
+                    </button>
+                  ))}
+                {marketplace.filter((a) => selectedAgentIds.includes(a.id)).length === 0 && (
+                  <p className="orch-flow__add-menu-empty">No agents selected yet. Go back to Step 4 to pick agents.</p>
                 )}
               </div>
-            </WizardPanel>
+            </div>
+          )}
 
-            <WizardPanel
-              className="orch-studio__props !p-3 sm:!p-4"
-              bodyClassName="min-h-0"
-            >
-              <h4>{selectedNode.label}</h4>
-              {selectedNode.kind === "query" ? (
-                <p className="orch-studio__props-hint">
-                  The raw text a Contoso employee types — no configuration, just the entry point into the
-                  routing graph.
-                </p>
-              ) : (
-                <div className="orch-studio__props-fields">
-                  <Field label="Role" className="orch-studio__field">
-                    <input className="ds-field orch-studio__input" value={selectedNode.role} readOnly />
-                  </Field>
-                  <Field label="Model" className="orch-studio__field">
-                    <select
-                      className="ds-field orch-studio__input"
-                      value={selectedNode.model ?? "gpt-4o-mini"}
-                      onChange={(e) => updateNode(selectedNode.id, { model: e.target.value })}
-                    >
-                      <option value="gpt-4o">gpt-4o</option>
-                      <option value="gpt-4o-mini">gpt-4o-mini</option>
-                      <option value="gpt-5">gpt-5</option>
-                    </select>
-                  </Field>
-                  <Field label="Instructions" className="orch-studio__field">
+          {isBuildPhase && addPanel === "logic" && (
+            <div className="orch-flow__add-menu orch-flow__add-menu--logic">
+              <div className="orch-flow__add-menu-head">
+                <div>
+                  <h4>Add logic</h4>
+                  <p className="orch-flow__add-menu-help">Rules that run after an agent responds.</p>
+                </div>
+                <button type="button" className="orch-flow__drawer-close" onClick={closeAddPanel}>
+                  <CloseRoundedIcon sx={{ fontSize: 15 }} />
+                </button>
+              </div>
+
+              <div className="orch-flow__add-menu-list">
+                {CONTROL_ITEMS.map((c) => (
+                  <button key={c.kind} type="button" className="orch-flow__add-menu-item" onClick={() => addControlNode(c.kind)}>
+                    <span className={`orch-flow__dir-icon orch-flow__dir-icon--${c.kind}`}>
+                      {KIND_ICONS[c.kind]}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="orch-flow__add-menu-name">{c.label}</div>
+                      <div className="orch-flow__add-menu-desc">{c.sub}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isBuildPhase && !addPanel && selectedNode && selectedNode.data.kind !== "query" && (
+            <div className="orch-flow__drawer">
+              <div className="orch-flow__drawer-head">
+                <span className="orch-flow__drawer-kind">{KIND_TAGS[selectedNode.data.kind]}</span>
+                <button
+                  type="button"
+                  className="orch-flow__drawer-close"
+                  aria-label="Close"
+                  onClick={() => setSelectedId(null)}
+                >
+                  <CloseRoundedIcon sx={{ fontSize: 15 }} />
+                </button>
+              </div>
+
+              <Field label="Name" className="orch-flow__field">
+                <input
+                  className="ds-field orch-flow__input"
+                  value={selectedNode.data.label}
+                  onChange={(e) => updateNodeData(selectedNode.id, { label: e.target.value })}
+                />
+              </Field>
+
+              {(selectedNode.data.kind === "agent" || selectedNode.data.kind === "orchestrator") && (
+                <>
+                  <Field label="Instructions" className="orch-flow__field">
                     <Textarea
-                      rows={3}
-                      className="orch-studio__textarea"
-                      value={selectedNode.instructions ?? ""}
-                      onChange={(e) => updateNode(selectedNode.id, { instructions: e.target.value })}
+                      rows={4}
+                      className="orch-flow__textarea"
+                      value={selectedNode.data.instructions ?? ""}
+                      onChange={(e) => updateNodeData(selectedNode.id, { instructions: e.target.value })}
+                      placeholder="Describe what this agent should do and which sub-tasks it owns."
                     />
                   </Field>
-                  <Field label="Data scope" className="orch-studio__field">
-                    <div className="orch-studio__scope-tags">
+                  <Field label="Delegated scope" className="orch-flow__field">
+                    <div className="orch-flow__scope-tags">
                       {ORCH_SCOPES.map((scope) => (
                         <button
                           key={scope}
                           type="button"
                           className={cn(
-                            "orch-studio__scope-tag",
-                            selectedNode.scopes.includes(scope) && "orch-studio__scope-tag--on",
+                            "orch-flow__scope-tag",
+                            (selectedNode.data.scopes ?? []).includes(scope) &&
+                              "orch-flow__scope-tag--on",
                           )}
                           onClick={() => toggleScope(selectedNode.id, scope)}
                         >
@@ -413,232 +841,207 @@ export const StepOrchestration = () => {
                       ))}
                     </div>
                   </Field>
-                </div>
-              )}
-            </WizardPanel>
-          </div>
-        )}
-
-        {view === "use" && (
-          <div className="orch-studio__use">
-            <WizardPanel
-              className="orch-studio__chat !p-0"
-              bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden"
-            >
-              
-
-              <div className="orch-studio__chat-log" ref={chatLogRef}>
-                {chat.length === 0 && !sending && (
-                  <div className="orch-studio__chat-empty">
-                    <span className="orch-studio__chat-empty-icon" aria-hidden>
-                      <AutoAwesomeRoundedIcon sx={{ fontSize: 22 }} />
-                    </span>
-                    <h4>Try a sample question</h4>
-                    <p>Short Contoso queries with real indexed documents behind them.</p>
-                    <div className="orch-studio__sample-chips">
-                      {orchPresets.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className="orch-studio__sample-chip"
-                          onClick={() => sendQuery(p.query)}
-                        >
-                          <span className="orch-studio__sample-chip-domain">{p.domain}</span>
-                          {p.query}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {chat.map((m) =>
-                  m.role === "user" ? (
-                    <div key={m.id} className="orch-studio__row orch-studio__row--user">
-                      <div className="orch-studio__bubble orch-studio__bubble--user">{m.text}</div>
-                      <span className="orch-studio__avatar orch-studio__avatar--user" aria-hidden>
-                        <PersonRoundedIcon sx={{ fontSize: 15 }} />
-                      </span>
-                    </div>
-                  ) : (
-                    <div key={m.id} className="orch-studio__row orch-studio__row--agent">
-                      <span className="orch-studio__avatar orch-studio__avatar--agent" aria-hidden>
-                        <AutoAwesomeRoundedIcon sx={{ fontSize: 15 }} />
-                      </span>
-                      <div className="orch-studio__bubble orch-studio__bubble--agent">
-                        {m.trace && <div className="orch-studio__route">{m.trace}</div>}
-                        <div className="orch-studio__answer">{m.text}</div>
-
-                        {m.sources && m.sources.length > 0 && (
-                          <div className="orch-studio__sources">
-                            <div className="orch-studio__sources-label">Sources ({m.sources.length})</div>
-                            <div className="orch-studio__source-list">
-                              {m.sources.map((s) => (
-                                <span
-                                  key={`${m.id}-${s.label}`}
-                                  className="orch-studio__source"
-                                  title={[s.connector, s.detail].filter(Boolean).join(" — ")}
-                                >
-                                  <DescriptionOutlinedIcon sx={{ fontSize: 12 }} />
-                                  {s.label}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="orch-studio__msg-meta">
-                          <span>{m.time}</span>
-                          {m.meta && <span>{m.meta}</span>}
-                        </div>
-
-                        {m.followUps && m.followUps.length > 0 && (
-                          <div className="orch-studio__followups">
-                            {m.followUps.map((f) => (
-                              <button
-                                key={f}
-                                type="button"
-                                className="orch-studio__followup"
-                                onClick={() => sendQuery(f)}
-                                disabled={sending}
-                              >
-                                {f}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ),
-                )}
-
-                {sending && (
-                  <div className="orch-studio__row orch-studio__row--agent">
-                    <span className="orch-studio__avatar orch-studio__avatar--agent" aria-hidden>
-                      <AutoAwesomeRoundedIcon sx={{ fontSize: 15 }} />
-                    </span>
-                    <div className="orch-studio__bubble orch-studio__bubble--agent">
-                      <span className="orch-studio__typing" aria-label="Thinking">
-                        <span />
-                        <span />
-                        <span />
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {chat.length > 0 && (
-                <div className="orch-studio__sample-row">
-                  {orchPresets.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className="orch-studio__sample-pill"
-                      onClick={() => sendQuery(p.query)}
-                      disabled={sending}
-                    >
-                      {p.domain}
-                    </button>
-                  ))}
-                </div>
+                </>
               )}
 
-              <div className="orch-studio__composer">
-                <input
-                  className="ds-field orch-studio__composer-input"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendCustom()}
-                  placeholder="Ask a short Contoso question…"
-                  disabled={sending}
-                />
+              {selectedNode.data.kind === "condition" && (
+                <Field label="Condition expression" className="orch-flow__field">
+                  <input
+                    className="ds-field orch-flow__input"
+                    placeholder='e.g. output.confidence > 0.8'
+                    defaultValue="output.confidence > 0.8"
+                  />
+                </Field>
+              )}
+
+              {selectedNode.data.kind === "human" && (
+                <p className="orch-flow__drawer-hint">
+                  Execution pauses here until a reviewer approves in the UI.
+                </p>
+              )}
+
+              {selectedNode.data.kind !== "orchestrator" && (
                 <Button
-                  variant="primary"
+                  variant="ghost"
                   size="sm"
-                  onClick={sendCustom}
-                  disabled={sending || !input.trim()}
+                  className="!text-red-600"
+                  onClick={() => removeNode(selectedNode.id)}
                 >
-                  <SendRoundedIcon sx={{ fontSize: 16 }} />
-                  Send
+                  Remove node
                 </Button>
-              </div>
-            </WizardPanel>
-          </div>
-        )}
+              )}
+            </div>
+          )}
+        </div>
 
-        {view === "validate" && (
-          <div className="orch-studio__validate">
-            <div className="orch-studio__val-top">
-              <div className="orch-studio__readiness">
-                <div
-                  className="orch-studio__ring"
-                  style={{
-                    background: `conic-gradient(#2bbe7b 0deg, #2bbe7b ${ringDeg}deg, rgba(0,0,0,0.08) ${ringDeg}deg)`,
-                  }}
-                >
-                  <span className="orch-studio__ring-inner">{readyPct}%</span>
+        <div
+          className={cn("orch-flow__visualizer ds-glass", isBuildPhase && "orch-flow__visualizer--collapsed")}
+          aria-hidden={isBuildPhase}
+        >
+          <div className="orch-flow__chat-head">
+            <div>
+              <h3>Playground</h3>
+              <p>Check your workflow here</p>
+            </div>
+          </div>
+
+          <div className="orch-flow__playground-body">
+            <div className="orch-flow__chat-log" ref={chatLogRef}>
+              {chat.length === 0 && !sending && (
+                <div className="orch-flow__chat-empty">
+                  <span className="orch-flow__chat-empty-icon" aria-hidden>
+                    <AutoAwesomeRoundedIcon sx={{ fontSize: 20 }} />
+                  </span>
+                  <h4>Try a test query</h4>
+                  <p>Send a prompt to check the workflow in the playground.</p>
+                  <div className="orch-flow__sample-chips">
+                    {orchPresets.slice(0, 3).map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="orch-flow__sample-chip"
+                        onClick={() => sendQuery(p.query)}
+                      >
+                        <span className="orch-flow__sample-domain">{p.domain}</span>
+                        {p.query}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <span className="orch-studio__ready-title">Ready to publish</span>
-                  <span className="orch-studio__ready-sub">{readyLabel}</span>
+              )}
+
+              {chat.map((m) =>
+                m.role === "user" ? (
+                  <div key={m.id} className="orch-flow__row orch-flow__row--user">
+                    <div className="orch-flow__bubble orch-flow__bubble--user">{m.text}</div>
+                    <span className="orch-flow__avatar" aria-hidden>
+                      <PersonRoundedIcon sx={{ fontSize: 14 }} />
+                    </span>
+                  </div>
+                ) : (
+                  <div key={m.id} className="orch-flow__row orch-flow__row--agent">
+                    <span className="orch-flow__avatar orch-flow__avatar--agent" aria-hidden>
+                      <AutoAwesomeRoundedIcon sx={{ fontSize: 14 }} />
+                    </span>
+                    <div className="orch-flow__bubble orch-flow__bubble--agent">
+                      {m.trace && <div className="orch-flow__route">{m.trace}</div>}
+                      <div>{m.text}</div>
+                      {m.sources && m.sources.length > 0 && (
+                        <div className="orch-flow__sources">
+                          {m.sources.map((s) => (
+                            <span
+                              key={`${m.id}-${s.label}`}
+                              className="orch-flow__source"
+                              title={[s.connector, s.detail].filter(Boolean).join(" — ")}
+                            >
+                              <DescriptionOutlinedIcon sx={{ fontSize: 11 }} />
+                              {s.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {m.followUps && m.followUps.length > 0 && (
+                        <div className="orch-flow__followups">
+                          {m.followUps.map((f) => (
+                            <button
+                              key={f}
+                              type="button"
+                              className="orch-flow__followup"
+                              onClick={() => sendQuery(f)}
+                              disabled={sending}
+                            >
+                              {f}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ),
+              )}
+
+              {sending && (
+                <div className="orch-flow__row orch-flow__row--agent">
+                  <span className="orch-flow__avatar orch-flow__avatar--agent" aria-hidden>
+                    <AutoAwesomeRoundedIcon sx={{ fontSize: 14 }} />
+                  </span>
+                  <div className="orch-flow__bubble orch-flow__bubble--agent">
+                    <span className="orch-flow__typing" aria-label="Running workflow">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <Button variant="primary" size="sm" loading={validating} onClick={runValidation}>
-                Run validation suite
+              )}
+            </div>
+
+            <div className="orch-flow__composer">
+              <input
+                className="ds-field orch-flow__composer-input"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendCustom()}
+                placeholder="Type a test prompt…"
+                disabled={sending}
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={sendCustom}
+                disabled={sending || !input.trim()}
+              >
+                <SendRoundedIcon sx={{ fontSize: 15 }} />
               </Button>
             </div>
 
-            <WizardPanel
-              className="orch-studio__val-table !p-0 overflow-hidden"
-              bodyClassName="min-h-0 flex-1 overflow-auto"
-            >
-              <table className="ds-table w-full min-w-[640px]">
-                <thead>
-                  <tr>
-                    <th>Agent</th>
-                    <th>Retrieval</th>
-                    <th>Citations</th>
-                    <th>Routing accuracy</th>
-                    <th>Scope isolation</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {valRows.map((r) => (
-                    <tr key={r.agentId}>
-                      <td>
-                        <div className="orch-studio__agent-cell">
-                          <span className="orch-studio__agent-dot">{r.name[0]}</span>
-                          {r.name}
-                        </div>
-                      </td>
-                      <td>
-                        <StatusChip status={r.retrieval} />
-                      </td>
-                      <td>
-                        <StatusChip status={r.citations} />
-                      </td>
-                      <td>
-                        <StatusChip status={r.routing} />
-                      </td>
-                      <td>
-                        <StatusChip status={r.scope} />
-                      </td>
-                    </tr>
+            <div className={cn("orch-flow__traces", tracesOpen && "orch-flow__traces--open")}>
+              <button
+                type="button"
+                className="orch-flow__traces-toggle"
+                onClick={() => setTracesOpen((v) => !v)}
+              >
+                <TerminalRoundedIcon sx={{ fontSize: 14 }} />
+                Execution traces ({traces.length})
+                {tracesOpen ? (
+                  <ExpandMoreRoundedIcon sx={{ fontSize: 16 }} />
+                ) : (
+                  <ExpandLessRoundedIcon sx={{ fontSize: 16 }} />
+                )}
+              </button>
+              {tracesOpen && (
+                <div className="orch-flow__traces-log">
+                  {traces.length === 0 && (
+                    <p className="orch-flow__traces-empty">Run a prompt to see execution traces.</p>
+                  )}
+                  {traces.map((t) => (
+                    <div key={t.id} className={`orch-flow__trace orch-flow__trace--${t.kind}`}>
+                      <span className="orch-flow__trace-time">{t.time}</span>
+                      <div className="min-w-0">
+                        <div className="orch-flow__trace-label">{t.label}</div>
+                        {t.detail && <div className="orch-flow__trace-detail">{t.detail}</div>}
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </WizardPanel>
-
-            <div className="orch-studio__val-badges">
-              <Badge variant="success">Retrieval</Badge>
-              <Badge variant="success">Citations</Badge>
-              <Badge variant="warning">Routing</Badge>
-              <Badge variant="success">Scope isolation</Badge>
-              <Badge variant="outline">Observability ready</Badge>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
+
+      {isBuildPhase && (
+        <p className="orch-flow__footer-hint">
+          <ChevronLeftRoundedIcon sx={{ fontSize: 14, transform: "rotate(180deg)" }} />
+          Use <strong>Add agent</strong> for work, <strong>Add logic</strong> for rules. Then <strong>Save & test</strong> to check in the playground.
+        </p>
+      )}
     </section>
   );
-};
+}
+
+export const StepOrchestration = () => (
+  <ReactFlowProvider>
+    <OrchestrationStudio />
+  </ReactFlowProvider>
+);

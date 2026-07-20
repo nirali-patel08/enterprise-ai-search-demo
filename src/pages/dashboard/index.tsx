@@ -1,8 +1,6 @@
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
-import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import { Link } from "react-router-dom";
-import { CHANNELS, ORCHESTRATION_OPTIONS, getPipelineStages } from "@/data/sample";
+import { Link, useNavigate } from "react-router-dom";
 import { useAgents } from "@/hooks/useAgents";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
@@ -10,29 +8,77 @@ import { PageHeader } from "@/components/ui/page-header";
 import { PageShell } from "@/components/ui/page-shell";
 import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
+import { WizardPanel } from "@/pages/search-builder/components/wizard-ui";
 import StorageRoundedIcon from "@mui/icons-material/StorageRounded";
 import SmartToyRoundedIcon from "@mui/icons-material/SmartToyRounded";
 import HubRoundedIcon from "@mui/icons-material/HubRounded";
 import { useBuilderStore } from "@/store/builder-store";
+import type { MarketplaceAgent } from "@/data/sample";
 
-const PIPELINE_TONES = ["blue", "teal", "green", "orange", "violet"] as const;
+function AgentsTable({
+  agents,
+  emptyLabel,
+}: {
+  agents: MarketplaceAgent[];
+  emptyLabel: string;
+}) {
+  const navigate = useNavigate();
+
+  if (agents.length === 0) {
+    return <p className="px-4 py-6 text-[13px] text-black/60">{emptyLabel}</p>;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="ds-table ds-table--defined w-full min-w-[720px]">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Version</th>
+            <th>Type</th>
+            <th>Created on</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {agents.map((agent) => (
+            <tr
+              key={agent.id}
+              className="cursor-pointer hover:bg-black/[0.02]"
+              onClick={() => navigate(`/agents/${agent.id}`)}
+            >
+              <td>
+                <span className="font-medium text-black">{agent.name}</span>
+                {agent.id.startsWith("custom-") && (
+                  <Badge variant="info" className="ml-2">
+                    Custom
+                  </Badge>
+                )}
+              </td>
+              <td>
+                <Badge variant="outline">{agent.version}</Badge>
+              </td>
+              <td>{agent.type}</td>
+              <td className="text-black/60">{agent.createdOn}</td>
+              <td className="max-w-md truncate text-black/60">{agent.description || "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
-  const deploymentType = useBuilderStore((s) => s.deploymentType);
   const savedConnectors = useBuilderStore((s) => s.savedConnectors);
   const selectedAgentIds = useBuilderStore((s) => s.selectedAgentIds);
-  const channels = useBuilderStore((s) => s.channels);
-  const orchestrationId = useBuilderStore((s) => s.orchestrationId);
   const indexProgress = useBuilderStore((s) => s.indexProgress);
   const step = useBuilderStore((s) => s.step);
   const deployed = useBuilderStore((s) => s.deployed);
   const agents = useAgents();
 
-  const connectorNames = savedConnectors.map((c) => c.name);
-  const agentNames = agents.filter((a) => selectedAgentIds.includes(a.id)).map((a) => a.name);
-  const channelNames = CHANNELS.filter((c) => channels.includes(c.id)).map((c) => c.name);
-  const orchestration = ORCHESTRATION_OPTIONS.find((o) => o.id === orchestrationId);
-  const stages = getPipelineStages(deploymentType, connectorNames, agentNames, channelNames);
+  const orchestrationAgents = agents.filter((a) => a.type === "workflow");
+  const singleAgents = agents.filter((a) => a.type !== "workflow");
 
   return (
     <PageShell className="dashboard-page !py-3 !pt-1">
@@ -40,11 +86,11 @@ export default function DashboardPage() {
         className="!mb-3 !mt-1 !gap-2"
         icon={<DashboardRoundedIcon sx={{ fontSize: 18 }} />}
         title="Project Overview"
-        description="Pipeline status, connectors, agents, and deployment readiness."
+        description="Connectors, agents, and deployment readiness for your enterprise search project."
         action={
-          <Link to={deployed ? "/chat" : "/builder"}>
+          <Link to="/builder">
             <Button variant="primary" size="sm">
-              {deployed ? "Open AI Chat" : step > 1 ? `Resume setup · Step ${step}` : "Start setup"}
+              {deployed ? "Open builder" : step > 1 ? `Resume setup · Step ${step}` : "Start setup"}
               <ChevronRightRoundedIcon sx={{ fontSize: 16 }} />
             </Button>
           </Link>
@@ -52,90 +98,58 @@ export default function DashboardPage() {
       />
 
       <div className="dashboard-page__body">
-        <div className="dashboard-page__stats grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="dashboard-page__stats grid gap-2.5 sm:grid-cols-3">
           <StatCard compact variant="blue" icon={<HubRoundedIcon sx={{ fontSize: 16 }} />} value={savedConnectors.length} label="Saved connectors" />
           <StatCard compact variant="green" icon={<StorageRoundedIcon sx={{ fontSize: 16 }} />} value={`${indexProgress}%`} label="Indexing progress" />
           <StatCard compact variant="blue" icon={<SmartToyRoundedIcon sx={{ fontSize: 16 }} />} value={selectedAgentIds.length} label="Active agents" />
-          <StatCard compact variant="orange" icon={<DashboardRoundedIcon sx={{ fontSize: 16 }} />} value={deploymentType === "cloud" ? "Azure" : "Open Source"} label="Deployment" />
         </div>
 
-        <section className="route-section dashboard-page__pipeline !p-3">
+        <section className="route-section dashboard-page__agents !p-3">
           <div className="route-section__head !mb-2.5">
             <div>
-              <h2 className="route-section__title">Processing pipeline</h2>
-              <p className="route-section__description">Live configuration from the AI Search Builder.</p>
+              <h2 className="route-section__title">Orchestration agents</h2>
+              <p className="route-section__description">Multi-agent routing and supervisor workflows.</p>
             </div>
-            <Badge variant={deployed ? "success" : "warning"}>
-              {deployed ? "Published" : `Setup step ${step} of 7`}
+            <Badge variant={orchestrationAgents.length > 0 ? "success" : "warning"}>
+              {orchestrationAgents.length} configured
             </Badge>
           </div>
-          <div className="flex flex-wrap items-stretch gap-1.5">
-            {stages.map((stage, i) => (
-              <div key={stage.title} className="flex min-w-0 flex-1 items-center gap-1">
-                <div className={`pipeline-tile pipeline-tile--${PIPELINE_TONES[i % PIPELINE_TONES.length]} min-w-0 flex-1`}>
-                  <div className="flex items-start gap-2">
-                    <span className="pipeline-tile__index">{i + 1}</span>
-                    <div className="min-w-0">
-                      <h3 className="pipeline-tile__title">{stage.title}</h3>
-                      <p className="pipeline-tile__sub">{stage.sub}</p>
-                    </div>
-                  </div>
-                  {stage.pills.length > 0 && (
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      {stage.pills.slice(0, 2).map((p) => (
-                        <Badge key={p} variant={stage.tone} size="sm">{p}</Badge>
-                      ))}
-                      {stage.pills.length > 2 && (
-                        <Badge variant={stage.tone} size="sm">+{stage.pills.length - 2}</Badge>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {i < stages.length - 1 && (
-                  <ChevronRightRoundedIcon className="hidden shrink-0 text-black/20 sm:block" sx={{ fontSize: 14 }} />
-                )}
-              </div>
-            ))}
-          </div>
+          <WizardPanel className="overflow-hidden p-0" bodyClassName="p-0">
+            <AgentsTable agents={orchestrationAgents} emptyLabel="No orchestration agents yet. Add one from the builder or agent marketplace." />
+          </WizardPanel>
         </section>
 
-        <div className="dashboard-page__cards grid gap-2.5 md:grid-cols-2">
-          <Card hoverable>
-            <CardBody className="flex h-full flex-col !p-3.5">
-              <div className="mb-1.5 flex items-center justify-between gap-3">
-                <h3 className="text-[13px] font-semibold text-black">Orchestration</h3>
-                <Badge variant={orchestration ? "success" : "warning"}>
-                  {orchestration ? "Configured" : "Action needed"}
-                </Badge>
-              </div>
-              <p className="text-[13px] text-black/60">{orchestration?.name ?? "Not configured"}</p>
-              <p className="mt-0.5 line-clamp-2 text-[12px] text-black/45">{orchestration?.description}</p>
-              <Link to="/builder" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-accent-orange-dark">
-                Open orchestration studio <ChevronRightRoundedIcon sx={{ fontSize: 15 }} />
-              </Link>
-            </CardBody>
-          </Card>
-          <Card>
-            <CardBody className="flex h-full flex-col !p-3.5">
-              <div className="mb-1.5 flex items-center gap-2">
-                <CheckCircleRoundedIcon sx={{ fontSize: 16 }} className="text-success-icon" />
-                <h3 className="text-[13px] font-semibold text-black">Continue your flow</h3>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { label: "Connectors", href: "/connectors" },
-                  { label: "Agent Marketplace", href: "/agents" },
-                  { label: "AI Search Builder", href: "/builder" },
-                  { label: "AI Chat", href: "/chat" },
-                ].map((l) => (
-                  <Link key={l.href} to={l.href} className="test-step__chip">
-                    {l.label}
-                  </Link>
-                ))}
-              </div>
-            </CardBody>
-          </Card>
-        </div>
+        <section className="route-section dashboard-page__agents !p-3">
+          <div className="route-section__head !mb-2.5">
+            <div>
+              <h2 className="route-section__title">Agents</h2>
+              <p className="route-section__description">Specialist agents for search, documents, and domain queries.</p>
+            </div>
+            <Link to="/agents" className="text-xs font-semibold text-accent-orange-dark hover:underline">
+              View all
+            </Link>
+          </div>
+          <WizardPanel className="overflow-hidden p-0" bodyClassName="p-0">
+            <AgentsTable agents={singleAgents} emptyLabel="No agents yet. Create one from the agent marketplace." />
+          </WizardPanel>
+        </section>
+
+        <Card>
+          <CardBody className="flex h-full flex-col !p-3.5">
+            <h3 className="mb-2 text-[13px] font-semibold text-black">Continue your flow</h3>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "Connectors", href: "/connectors" },
+                { label: "Agent Marketplace", href: "/agents" },
+                { label: "AI Search Builder", href: "/builder" },
+              ].map((l) => (
+                <Link key={l.href} to={l.href} className="test-step__chip">
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
       </div>
     </PageShell>
   );

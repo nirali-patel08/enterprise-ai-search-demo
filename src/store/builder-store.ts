@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import type { ACTION_MODES, DeploymentType, MarketplaceAgent, SavedConnector } from "@/data/sample";
 import { SAMPLE_SAVED_CONNECTORS } from "@/data/sample";
 
-const MAX_STEP = 7;
+const MAX_STEP = 5;
 
 export interface BuilderStore {
   step: number;
@@ -19,6 +19,7 @@ export interface BuilderStore {
   customAgents: MarketplaceAgent[];
   selectedAgentIds: string[];
   orchestrationId: string;
+  orchestrationSaved: boolean;
   channels: string[];
   indexProgress: number;
   indexing: boolean;
@@ -49,6 +50,7 @@ export interface BuilderStore {
   toggleAgent: (id: string) => void;
   addCustomAgent: (agent: MarketplaceAgent) => void;
   setOrchestrationId: (id: string) => void;
+  setOrchestrationSaved: (value: boolean) => void;
   toggleChannel: (id: string) => void;
   setIndexing: (value: boolean) => void;
   setIndexProgress: (value: number) => void;
@@ -80,6 +82,7 @@ export const useBuilderStore = create<BuilderStore>()(
       customAgents: [],
       selectedAgentIds: ["sharepoint-agent", "engineering-drawing-agent", "document-router-agent"],
       orchestrationId: "langgraph-supervisor",
+      orchestrationSaved: false,
       channels: ["web", "teams"],
       indexProgress: 0,
       indexing: false,
@@ -223,6 +226,7 @@ export const useBuilderStore = create<BuilderStore>()(
             : [...s.selectedAgentIds, agent.id],
         })),
       setOrchestrationId: (orchestrationId) => set({ orchestrationId }),
+      setOrchestrationSaved: (orchestrationSaved) => set({ orchestrationSaved }),
       toggleChannel: (id) =>
         set((s) => ({
           channels: s.channels.includes(id) ? s.channels.filter((x) => x !== id) : [...s.channels, id],
@@ -239,7 +243,7 @@ export const useBuilderStore = create<BuilderStore>()(
       setTeamsCompat: (teamsCompat) => set({ teamsCompat }),
     }),
     {
-      name: "enterprise-search-builder-v4",
+      name: "enterprise-search-builder-v5",
       partialize: (state) => ({
         step: state.step,
         deploymentType: state.deploymentType,
@@ -252,6 +256,7 @@ export const useBuilderStore = create<BuilderStore>()(
         customAgents: state.customAgents,
         selectedAgentIds: state.selectedAgentIds,
         orchestrationId: state.orchestrationId,
+        orchestrationSaved: state.orchestrationSaved,
         channels: state.channels,
         indexProgress: state.indexProgress,
         testRan: state.testRan,

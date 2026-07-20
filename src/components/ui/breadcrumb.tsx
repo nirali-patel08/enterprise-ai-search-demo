@@ -5,12 +5,9 @@ import { cn } from "@/lib/utils";
 const ROUTE_LABELS: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/builder": "AI Search Builder",
-  "/chat": "AI Chat",
   "/connectors": "Connectors",
   "/agents": "Agents",
   "/agents/new": "New Agent",
-  "/analytics": "Analytics",
-  "/governance": "Governance",
   "/admin": "Admin",
 };
 

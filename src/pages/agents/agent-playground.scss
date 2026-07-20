@@ -17,10 +17,9 @@
   overflow: hidden;
 
   &__header {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    justify-content: space-between;
     gap: 12px 20px;
     margin-bottom: 12px;
     flex-shrink: 0;

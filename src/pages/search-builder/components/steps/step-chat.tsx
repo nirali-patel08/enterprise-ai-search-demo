@@ -96,7 +96,7 @@ export const StepChat = () => {
               {[
                 { label: "Apply RBAC / ACL Filter", value: rbac, set: setRbac },
                 { label: "Use Citations", value: citations, set: setCitations },
-                { label: "Teams / Copilot Compatible", value: teamsCompat, set: setTeamsCompat },
+                { label: "Team workspace compatible", value: teamsCompat, set: setTeamsCompat },
               ].map((t) => (
                 <label key={t.label} className="flex items-center justify-between text-sm">
                   <span className="text-gray-700">{t.label}</span>
