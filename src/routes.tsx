@@ -9,6 +9,7 @@ import AgentsPage from "@/pages/agents";
 import AgentDetailPage from "@/pages/agents/detail";
 import NewAgentPage from "@/pages/agents/new";
 import AdminPage from "@/pages/admin";
+import IndexesPage from "@/pages/indexes";
 
 export const routes: AppRouteObject[] = [
   { path: "/", element: <Navigate to="/dashboard" replace /> },
@@ -21,6 +22,7 @@ export const routes: AppRouteObject[] = [
           { path: "/dashboard", element: <DashboardPage />, meta: { title: "Dashboard" } },
           { path: "/builder", element: <SearchBuilderPage />, meta: { title: "AI Search Builder" } },
           { path: "/connectors", element: <ConnectorsPage />, meta: { title: "Connectors" } },
+          { path: "/indexes", element: <IndexesPage />, meta: { title: "OpenSearch Indices" } },
           { path: "/agents", element: <AgentsPage />, meta: { title: "Agent Marketplace" } },
           { path: "/agents/new", element: <NewAgentPage />, meta: { title: "New Agent" } },
           { path: "/agents/:agentId", element: <AgentDetailPage />, meta: { title: "Agent Details" } },

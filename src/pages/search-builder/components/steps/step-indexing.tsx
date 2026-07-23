@@ -3,6 +3,8 @@ import { useMutation } from "@tanstack/react-query";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import { searchBuilderApi } from "@/api/search-builder";
@@ -16,6 +18,7 @@ import { useBuilderStore } from "@/store/builder-store";
 import { estimateSelection } from "@/types/content";
 import type { IndexingScopeSummary } from "@/types/content";
 import type { ContentNode } from "@/types/content";
+import { ConnectorSourceChip } from "../connector-source-chip";
 import { WizardPanel } from "../wizard-ui";
 
 const INDEXING_STAGES = [
@@ -23,8 +26,16 @@ const INDEXING_STAGES = [
   { short: "OCR", label: "OCR & text extraction" },
   { short: "Chunk", label: "Chunking content" },
   { short: "Embed", label: "Generating embeddings" },
-  { short: "Write", label: "Writing to search index" },
+  { short: "Completed", label: "Completed" },
 ] as const;
+
+type StepIndexingProps = {
+  stepNumber: number;
+  totalSteps: number;
+  canContinue: boolean;
+  onPrevious: () => void;
+  onContinue: () => void;
+};
 
 function defaultPathsForConnector(connectorTypeId: string): string[] {
   const nodes = getBrowseTree(connectorTypeId);
@@ -34,7 +45,13 @@ function defaultPathsForConnector(connectorTypeId: string): string[] {
   return firstFile ? [firstFile.path] : [];
 }
 
-export const StepIndexing = () => {
+export const StepIndexing = ({
+  stepNumber,
+  totalSteps,
+  canContinue,
+  onPrevious,
+  onContinue,
+}: StepIndexingProps) => {
   const savedConnectors = useBuilderStore((s) => s.savedConnectors);
   const deploymentType = useBuilderStore((s) => s.deploymentType);
   const indexingSelection = useBuilderStore((s) => s.indexingSelection);
@@ -53,12 +70,14 @@ export const StepIndexing = () => {
   const setIndexing = useBuilderStore((s) => s.setIndexing);
   const setIndexProgress = useBuilderStore((s) => s.setIndexProgress);
   const updateConnectorStatus = useBuilderStore((s) => s.updateConnectorStatus);
+  const upsertSearchIndexesFromIndexing = useBuilderStore((s) => s.upsertSearchIndexesFromIndexing);
 
   const intervalRef = useRef<number | null>(null);
 
   const ready = savedConnectors.filter((c) => c.deployment === deploymentType && c.validated);
   const selected = ready.filter((c) => indexingSelection.includes(c.id));
   const browseConnector = selected.find((c) => c.id === activeBrowseConnectorId) ?? selected[0];
+  const activeId = browseConnector?.id ?? activeBrowseConnectorId;
 
   const { data: browseData, isLoading: browseLoading, refetch } = useContentBrowse(
     browseConnector?.connectorTypeId ?? "",
@@ -142,6 +161,22 @@ export const StepIndexing = () => {
           const est = estimateSelection(nodes, paths).fileCount;
           updateConnectorStatus(c.id, "indexed", est, paths);
         });
+        upsertSearchIndexesFromIndexing(
+          selection.map((c) => {
+            const paths = state.contentSelections[c.id]?.length
+              ? state.contentSelections[c.id]
+              : defaultPathsForConnector(c.connectorTypeId);
+            const nodes = getBrowseTree(c.connectorTypeId);
+            const est = estimateSelection(nodes, paths).fileCount;
+            return {
+              connectorId: c.id,
+              connectorName: c.name,
+              connectorTypeId: c.connectorTypeId,
+              deployment: c.deployment,
+              documentCount: est,
+            };
+          }),
+        );
         toast.success("Indexing complete — documents are searchable");
         return;
       }
@@ -151,112 +186,84 @@ export const StepIndexing = () => {
     return () => {
       if (intervalRef.current) window.clearInterval(intervalRef.current);
     };
-  }, [indexing, setIndexProgress, setIndexing, setIndexingComplete, updateConnectorStatus]);
+  }, [indexing, setIndexProgress, setIndexing, setIndexingComplete, updateConnectorStatus, upsertSearchIndexesFromIndexing]);
 
   const handleTogglePath = (path: string, _node: ContentNode) => {
     if (!browseConnector) return;
     toggleContentPath(browseConnector.id, path);
   };
 
-  const statusLabel = indexingComplete ? "Complete" : jobRunning ? "Running" : "Ready";
+  const handleActivateConnector = (connectorId: string) => {
+    const included = indexingSelection.includes(connectorId);
+    if (!included) {
+      toggleIndexingSelection(connectorId);
+      setActiveBrowseConnectorId(connectorId);
+      return;
+    }
+    setActiveBrowseConnectorId(connectorId);
+    refetch();
+  };
+
+  const handleToggleInclude = (connectorId: string) => {
+    const wasIncluded = indexingSelection.includes(connectorId);
+    toggleIndexingSelection(connectorId);
+    if (wasIncluded && activeId === connectorId) {
+      const remaining = indexingSelection.filter((id) => id !== connectorId);
+      if (remaining[0]) setActiveBrowseConnectorId(remaining[0]);
+    }
+    if (!wasIncluded) {
+      setActiveBrowseConnectorId(connectorId);
+    }
+  };
 
   return (
     <section className="ds-index-step">
       {indexingComplete && (
-        <div className="ds-success-banner !py-3 shrink-0">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-success-icon text-white">
-            <CheckCircleRoundedIcon sx={{ fontSize: 16 }} />
-          </div>
-          <div>
-            <p className="ds-success-banner__title !text-[14px]">Indexing completed successfully</p>
-            <p className="ds-success-banner__body !mt-0.5 !text-[12px]">
-              {totalEstFiles} document{totalEstFiles === 1 ? "" : "s"} indexed. Use <strong>Continue</strong> for
-              AI Agents.
-            </p>
-          </div>
+        <div className="ds-index-success shrink-0">
+          <CheckCircleRoundedIcon sx={{ fontSize: 16 }} />
+          <span>
+            Indexing complete — <strong>{totalEstFiles}</strong> document{totalEstFiles === 1 ? "" : "s"} searchable.
+          </span>
         </div>
       )}
 
-      <div className="ds-index-strip shrink-0">
-        <div className="ds-index-chip-list" role="group" aria-label="Data sources">
-          {ready.map((c) => {
-            const on = indexingSelection.includes(c.id);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                aria-pressed={on}
-                title={on ? "Deselect source" : "Select source"}
-                onClick={() => toggleIndexingSelection(c.id)}
-                className={cn("ds-index-chip", on && "ds-index-chip--selected")}
-              >
-                <span className="ds-index-chip__check" aria-hidden>
-                  {on && <CheckRoundedIcon sx={{ fontSize: 14 }} />}
-                </span>
-                <span className="ds-index-chip__label">{c.name}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="ds-index-strip__meta">
-          <span className="font-semibold text-black/70">{ready.length} connectors</span>
-          <span className="inline-flex items-center gap-1.5 font-semibold text-black/70">
-            <span
-              className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                selected.length > 0 ? "bg-success-icon" : "bg-black/25",
-              )}
-              aria-hidden
+      <div className="ds-source-chip-row shrink-0" role="tablist" aria-label="Data sources">
+        <div className="ds-source-chip-row__chips">
+        {ready.map((c) => {
+          const included = indexingSelection.includes(c.id);
+          const pathCount = contentSelections[c.id]?.length ?? 0;
+          return (
+            <ConnectorSourceChip
+              key={c.id}
+              name={c.name}
+              included={included}
+              active={activeId === c.id}
+              pathCount={pathCount}
+              error={c.status === "pending"}
+              onActivate={() => handleActivateConnector(c.id)}
+              onToggleInclude={() => handleToggleInclude(c.id)}
             />
-            {selected.length === 0 ? "None selected" : `${selected.length} selected`}
-          </span>
-          <span
-            className={cn(
-              "font-bold",
-              indexingComplete || statusLabel === "Ready" ? "text-success-title" : "text-accent-orange",
-            )}
-          >
-            {statusLabel}
-          </span>
+          );
+        })}
+        {ready.length === 0 && (
+          <p className="ds-source-chip-row__empty">No connected sources — finish Step 2 first.</p>
+        )}
         </div>
+        {ready.length > 0 && (
+          <div className="ds-source-chip-row__meta">
+            <span className="ds-source-chip-row__summary">
+              {ready.length} connector{ready.length === 1 ? "" : "s"} · {selected.length} selected
+            </span>
+            <span className="ds-source-chip-row__status">
+              <span className="ds-source-chip-row__status-dot" aria-hidden />
+              Ready
+            </span>
+          </div>
+        )}
       </div>
 
       {browseConnector ? (
-        <WizardPanel
-          className="ds-index-step__panel !p-4"
-          bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden"
-        >
-          {selected.length > 1 && (
-            <div className="ds-cat-tabs ds-cat-tabs--pill mb-3 shrink-0" role="tablist" aria-label="Browse source">
-              {selected.map((c) => {
-                const pathCount = contentSelections[c.id]?.length ?? 0;
-                const isActive = c.id === (activeBrowseConnectorId ?? browseConnector.id);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    className={cn("ds-cat-tab", isActive && "ds-cat-tab--active")}
-                    onClick={() => {
-                      setActiveBrowseConnectorId(c.id);
-                      refetch();
-                    }}
-                  >
-                    {c.name}
-                    <span
-                      className={cn(
-                        "ds-cat-tab__count",
-                        pathCount > 0 && "ds-cat-tab__count--done",
-                      )}
-                    >
-                      {pathCount}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+        <WizardPanel className="ds-index-step__panel !p-3" bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="ds-index-step__browser">
             <ContentBrowser
               nodes={browseData?.nodes ?? []}
@@ -268,58 +275,12 @@ export const StepIndexing = () => {
             />
           </div>
 
-          <div className="ds-index-action-bar mt-3 shrink-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="primary"
-                size="md"
-                disabled={selected.length === 0 || jobRunning}
-                loading={indexMutation.isPending}
-                onClick={handleStartIndexing}
-              >
-                <PlayArrowRoundedIcon sx={{ fontSize: 18 }} />
-                {jobRunning ? "Indexing…" : indexingComplete ? "Re-run indexing" : "Start indexing job"}
-              </Button>
-              {jobRunning && (
-                <Button variant="secondary" size="sm" onClick={() => setIndexing(false)}>
-                  Pause
-                </Button>
-              )}
-            </div>
-
-            <ol className="ds-pipeline ds-pipeline--compact min-w-0 flex-1" aria-label="Indexing pipeline">
-              {INDEXING_STAGES.map((stage, i) => {
-                const done = indexingComplete || (jobRunning && i < activeStageIndex);
-                const active = jobRunning && i === activeStageIndex && !indexingComplete;
-                return (
-                  <li
-                    key={stage.short}
-                    className={cn(
-                      "ds-pipeline__step",
-                      done && "ds-pipeline__step--done",
-                      active && "ds-pipeline__step--active",
-                    )}
-                  >
-                    <span className="ds-pipeline__node" aria-hidden>
-                      {done ? <CheckRoundedIcon sx={{ fontSize: 12 }} /> : i + 1}
-                    </span>
-                    <span className="ds-pipeline__label">{stage.short}</span>
-                  </li>
-                );
-              })}
-            </ol>
-
-            <span className="shrink-0 text-[12px] font-medium text-black/50">
-              ~{totalEstFiles} docs · ~{totalEstMb} MB
-            </span>
-          </div>
-
           {(jobRunning || indexingComplete) && (
-            <div className="mt-2 h-1.5 shrink-0 overflow-hidden rounded-full bg-[#E1E0DB]">
+            <div className="ds-index-progress shrink-0">
               <div
                 className={cn(
-                  "h-full rounded-full transition-all duration-300",
-                  indexingComplete ? "bg-success-icon" : "bg-accent-orange",
+                  "ds-index-progress__bar",
+                  indexingComplete ? "ds-index-progress__bar--done" : "ds-index-progress__bar--running",
                 )}
                 style={{ width: `${indexProgress}%` }}
               />
@@ -341,19 +302,78 @@ export const StepIndexing = () => {
           <p className="ds-index-empty__desc">
             {ready.length === 0
               ? "Go back to Connectors, finish Test & connect, then return here to index content."
-              : "Select one or more connectors above. You’ll then browse folders and choose paths to index."}
+              : "Click a source chip to include it and browse folders. Click the active chip again to deselect."}
           </p>
           {ready.length > 0 && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => toggleIndexingSelection(ready[0].id)}
-            >
+            <Button variant="secondary" size="sm" onClick={() => handleActivateConnector(ready[0].id)}>
               Select {ready[0].name}
             </Button>
           )}
         </div>
       )}
+
+      <footer className="ds-index-footer shrink-0">
+        <div className="ds-index-footer__actions">
+          <Button variant="secondary" size="sm" onClick={onPrevious}>
+            <ChevronLeftRoundedIcon sx={{ fontSize: 16 }} />
+            Previous
+          </Button>
+          {browseConnector && (
+            <>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={selected.length === 0 || jobRunning}
+                loading={indexMutation.isPending}
+                onClick={handleStartIndexing}
+              >
+                <PlayArrowRoundedIcon sx={{ fontSize: 16 }} />
+                {jobRunning ? "Indexing…" : indexingComplete ? "Re-run" : "Start indexing"}
+              </Button>
+              {jobRunning && (
+                <Button variant="secondary" size="sm" onClick={() => setIndexing(false)}>
+                  Pause
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+
+        <ol className="ds-pipeline ds-pipeline--compact ds-index-footer__pipeline" aria-label="Indexing pipeline">
+          {INDEXING_STAGES.map((stage, i) => {
+            const done = indexingComplete || (jobRunning && i < activeStageIndex);
+            const active = jobRunning && i === activeStageIndex && !indexingComplete;
+            return (
+              <li
+                key={stage.short}
+                className={cn(
+                  "ds-pipeline__step",
+                  done && "ds-pipeline__step--done",
+                  active && "ds-pipeline__step--active",
+                )}
+              >
+                <span className="ds-pipeline__node" aria-hidden>
+                  {done ? <CheckRoundedIcon sx={{ fontSize: 12 }} /> : i + 1}
+                </span>
+                <span className="ds-pipeline__label">{stage.short}</span>
+              </li>
+            );
+          })}
+        </ol>
+
+        <div className="ds-index-footer__end">
+          <span className="ds-index-footer__totals">
+            ~{totalEstFiles} docs · ~{totalEstMb} MB
+          </span>
+          <span className="ds-index-footer__step">
+            Step {stepNumber} of {totalSteps}
+          </span>
+          <Button variant="primary" size="sm" disabled={!canContinue} onClick={onContinue}>
+            Continue
+            <ChevronRightRoundedIcon sx={{ fontSize: 16 }} />
+          </Button>
+        </div>
+      </footer>
     </section>
   );
 };

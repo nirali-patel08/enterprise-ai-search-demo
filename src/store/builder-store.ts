@@ -1,7 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ACTION_MODES, DeploymentType, MarketplaceAgent, SavedConnector } from "@/data/sample";
-import { SAMPLE_SAVED_CONNECTORS } from "@/data/sample";
+import type {
+  ACTION_MODES,
+  DeploymentType,
+  MarketplaceAgent,
+  SavedConnector,
+  SearchIndex,
+  WorkflowDefinition,
+} from "@/data/sample";
+import { EMPTY_WORKFLOW, SAMPLE_SAVED_CONNECTORS, SAMPLE_SEARCH_INDEXES, buildIndexName } from "@/data/sample";
 
 const MAX_STEP = 5;
 
@@ -18,6 +25,8 @@ export interface BuilderStore {
   indexingComplete: boolean;
   customAgents: MarketplaceAgent[];
   selectedAgentIds: string[];
+  searchIndexes: SearchIndex[];
+  workflowDefinition: WorkflowDefinition;
   orchestrationId: string;
   orchestrationSaved: boolean;
   channels: string[];
@@ -49,6 +58,18 @@ export interface BuilderStore {
   updateConnectorStatus: (id: string, status: SavedConnector["status"], documentCount?: number, indexedPaths?: string[]) => void;
   toggleAgent: (id: string) => void;
   addCustomAgent: (agent: MarketplaceAgent) => void;
+  addSearchIndex: (index: SearchIndex) => void;
+  removeSearchIndex: (id: string) => void;
+  upsertSearchIndexesFromIndexing: (
+    entries: Array<{
+      connectorId: string;
+      connectorName: string;
+      connectorTypeId: string;
+      deployment: DeploymentType;
+      documentCount: number;
+    }>,
+  ) => void;
+  setWorkflowDefinition: (workflow: WorkflowDefinition) => void;
   setOrchestrationId: (id: string) => void;
   setOrchestrationSaved: (value: boolean) => void;
   toggleChannel: (id: string) => void;
@@ -81,7 +102,9 @@ export const useBuilderStore = create<BuilderStore>()(
       indexingComplete: false,
       customAgents: [],
       selectedAgentIds: ["sharepoint-agent", "engineering-drawing-agent", "document-router-agent"],
-      orchestrationId: "langgraph-supervisor",
+      searchIndexes: SAMPLE_SEARCH_INDEXES,
+      workflowDefinition: { ...EMPTY_WORKFLOW },
+      orchestrationId: "",
       orchestrationSaved: false,
       channels: ["web", "teams"],
       indexProgress: 0,
@@ -225,6 +248,45 @@ export const useBuilderStore = create<BuilderStore>()(
             ? s.selectedAgentIds
             : [...s.selectedAgentIds, agent.id],
         })),
+      addSearchIndex: (index) =>
+        set((s) => ({
+          searchIndexes: s.searchIndexes.some((i) => i.id === index.id)
+            ? s.searchIndexes.map((i) => (i.id === index.id ? index : i))
+            : [...s.searchIndexes, index],
+        })),
+      removeSearchIndex: (id) =>
+        set((s) => ({
+          searchIndexes: s.searchIndexes.filter((i) => i.id !== id),
+        })),
+      upsertSearchIndexesFromIndexing: (entries) =>
+        set((s) => {
+          const next = [...s.searchIndexes];
+          entries.forEach((entry) => {
+            const id = `idx-${entry.connectorId}`;
+            const existing = next.find((i) => i.id === id);
+            const sizeBytes = Math.max(1, entry.documentCount) * 1450;
+            const index: SearchIndex = {
+              id,
+              name: existing?.name ?? buildIndexName(entry.connectorName, entry.connectorTypeId),
+              deployment: entry.deployment,
+              createdVia: "builder-indexing",
+              connectorId: entry.connectorId,
+              connectorName: entry.connectorName,
+              documentCount: entry.documentCount,
+              sizeBytes,
+              status: entry.documentCount > 0 ? "yellow" : "red",
+              createdAt: new Date().toLocaleString(),
+            };
+            if (existing) {
+              const idx = next.findIndex((i) => i.id === id);
+              next[idx] = { ...existing, ...index, name: existing.name };
+            } else {
+              next.push(index);
+            }
+          });
+          return { searchIndexes: next };
+        }),
+      setWorkflowDefinition: (workflowDefinition) => set({ workflowDefinition }),
       setOrchestrationId: (orchestrationId) => set({ orchestrationId }),
       setOrchestrationSaved: (orchestrationSaved) => set({ orchestrationSaved }),
       toggleChannel: (id) =>
@@ -243,7 +305,7 @@ export const useBuilderStore = create<BuilderStore>()(
       setTeamsCompat: (teamsCompat) => set({ teamsCompat }),
     }),
     {
-      name: "enterprise-search-builder-v5",
+      name: "enterprise-search-builder-v6",
       partialize: (state) => ({
         step: state.step,
         deploymentType: state.deploymentType,
@@ -255,6 +317,8 @@ export const useBuilderStore = create<BuilderStore>()(
         indexingComplete: state.indexingComplete,
         customAgents: state.customAgents,
         selectedAgentIds: state.selectedAgentIds,
+        searchIndexes: state.searchIndexes,
+        workflowDefinition: state.workflowDefinition,
         orchestrationId: state.orchestrationId,
         orchestrationSaved: state.orchestrationSaved,
         channels: state.channels,

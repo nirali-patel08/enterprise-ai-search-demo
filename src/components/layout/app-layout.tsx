@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
+import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import { Outlet } from "react-router-dom";
-import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { cn } from "@/lib/utils";
 
@@ -48,12 +48,19 @@ export const AppLayout = () => {
         </div>
       )}
 
-      <div id="scroll-container" className="weave-page-bg flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <Header
-          showMenuButton
-          onMenuToggle={() => setMobileSidebarOpen((o) => !o)}
-        />
-        <main id="main-content" className="relative z-0 flex min-h-0 flex-1 flex-col overflow-y-auto pb-6">
+      <div id="scroll-container" className="weave-page-bg relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {!mobileSidebarOpen && (
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen(true)}
+            aria-label="Open navigation menu"
+            className="fixed left-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-[10px] border border-white/80 bg-[rgba(255,255,255,0.72)] text-text-secondary shadow-[0_2px_10px_rgba(0,0,0,0.08)] backdrop-blur-md transition-colors hover:bg-white hover:text-text-primary lg:hidden"
+          >
+            <MenuRoundedIcon sx={{ fontSize: 20 }} />
+          </button>
+        )}
+
+        <main id="main-content" className="relative z-0 flex min-h-0 flex-1 flex-col overflow-y-auto pb-6 pt-14 lg:pt-0">
           <Outlet />
         </main>
       </div>

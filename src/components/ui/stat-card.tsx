@@ -8,6 +8,8 @@ interface StatCardProps {
   iconClassName?: string;
   variant?: "orange" | "blue" | "green";
   compact?: boolean;
+  active?: boolean;
+  onClick?: () => void;
 }
 
 const variantClasses = {
@@ -16,8 +18,17 @@ const variantClasses = {
   green: "bg-success-bg text-success-icon",
 };
 
-export const StatCard = ({ icon, value, label, iconClassName, variant = "orange", compact = false }: StatCardProps) => (
-  <Card>
+export const StatCard = ({
+  icon,
+  value,
+  label,
+  iconClassName,
+  variant = "orange",
+  compact = false,
+  active = false,
+  onClick,
+}: StatCardProps) => {
+  const body = (
     <CardBody className={cn("flex items-center gap-3", compact ? "p-2.5" : "p-4")}>
       <div
         className={cn(
@@ -34,5 +45,30 @@ export const StatCard = ({ icon, value, label, iconClassName, variant = "orange"
         <p className={cn("text-stat-label", compact && "text-[11px]")}>{label}</p>
       </div>
     </CardBody>
-  </Card>
-);
+  );
+
+  if (onClick) {
+    return (
+      <Card
+        className={cn(
+          "dashboard-stat-card cursor-pointer hover:!translate-y-0 focus-visible:!translate-y-0",
+          active && "dashboard-stat-card--active",
+        )}
+        onClick={onClick}
+        role="button"
+        tabIndex={0}
+        aria-pressed={active}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+      >
+        {body}
+      </Card>
+    );
+  }
+
+  return <Card>{body}</Card>;
+};

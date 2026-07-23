@@ -7,7 +7,6 @@ import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import AttachFileRoundedIcon from "@mui/icons-material/AttachFileRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
@@ -20,6 +19,8 @@ import { getPresetsForAgent, resolveDemoReply, type DemoCitation } from "@/data/
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/ui/page-shell";
 import { Field, Textarea, TextInput } from "@/pages/search-builder/components/wizard-ui";
+import { IndexListing } from "@/components/indexes/index-listing";
+import { useBuilderStore } from "@/store/builder-store";
 import { cn } from "@/lib/utils";
 import "@/pages/agents/agent-playground.scss";
 
@@ -29,7 +30,6 @@ const CREATE_MODES = [
   { id: "external", label: "Link", type: "external" as const },
 ];
 
-const SEARCH_INDEXES = ["byod-index", "document-library-index", "engineering-tables", "tech-docs-index"];
 
 export type AgentPlaygroundMode = (typeof CREATE_MODES)[number]["id"];
 
@@ -108,6 +108,8 @@ export function AgentPlaygroundLayout({
   const [feedback, setFeedback] = useState<Record<string, "up" | "down">>({});
 
   const logRef = useRef<HTMLDivElement>(null);
+
+  const deploymentType = useBuilderStore((s) => s.deploymentType);
 
   const selectedMode = CREATE_MODES.find((m) => m.id === values.mode) ?? CREATE_MODES[0];
   const displayName = values.name.trim() || "New agent";
@@ -240,7 +242,7 @@ export function AgentPlaygroundLayout({
               {selectedMode.type === "prompt" && (
                 <CollapsibleSection title="Tools">
                   <p className="agent-playground__hint !mt-0">
-                    Connect tools to your agent for faster access to key information and actions.
+                    Connect an index created from the builder indexing flow. Select a row to bind it to this agent.
                   </p>
                   <div className="agent-playground__tool-card mt-3">
                     <div className="agent-playground__tool-head">
@@ -249,23 +251,16 @@ export function AgentPlaygroundLayout({
                       </span>
                       Enterprise Search
                     </div>
-                    <select
-                      className="ds-field"
-                      value={values.searchIndex}
-                      onChange={(e) => onChange("searchIndex", e.target.value)}
-                      aria-label="Search index"
-                    >
-                      {SEARCH_INDEXES.map((index) => (
-                        <option key={index} value={index}>
-                          {index}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Button variant="secondary" size="sm">
-                        Add
-                        <KeyboardArrowDownRoundedIcon sx={{ fontSize: 16 }} />
-                      </Button>
+                    <IndexListing
+                      variant="embedded"
+                      deploymentFilter={deploymentType}
+                      selectedIndex={values.searchIndex}
+                      onSelect={(name) => onChange("searchIndex", name)}
+                    />
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Link to="/indexes" className="text-xs font-semibold text-[#ea580c] hover:underline">
+                        View all indexes
+                      </Link>
                       <Button variant="outline" size="sm">
                         Upload files
                       </Button>

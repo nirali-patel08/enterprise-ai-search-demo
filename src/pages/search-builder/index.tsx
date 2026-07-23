@@ -27,9 +27,9 @@ export default function SearchBuilderPage() {
   const deploymentType = useBuilderStore((s) => s.deploymentType);
   const selectedConnectorTypeIds = useBuilderStore((s) => s.selectedConnectorTypeIds);
   const indexingSelection = useBuilderStore((s) => s.indexingSelection);
-  const selectedAgentIds = useBuilderStore((s) => s.selectedAgentIds);
   const orchestrationId = useBuilderStore((s) => s.orchestrationId);
   const orchestrationSaved = useBuilderStore((s) => s.orchestrationSaved);
+  const workflowDefinition = useBuilderStore((s) => s.workflowDefinition);
   const testRan = useBuilderStore((s) => s.testRan);
   const indexingComplete = useBuilderStore((s) => s.indexingComplete);
   const indexProgress = useBuilderStore((s) => s.indexProgress);
@@ -46,8 +46,13 @@ export default function SearchBuilderPage() {
     step === 1 ||
     (step === 2 && selectedReady.length > 0) ||
     (step === 3 && indexingSelection.length > 0 && (indexingComplete || indexProgress >= 100)) ||
-    (step === 4 && selectedAgentIds.length > 0) ||
-    (step === 5 && !!orchestrationId && orchestrationSaved && testRan);
+    (step === 4) ||
+    (step === 5 &&
+      !!workflowDefinition.orchestrator &&
+      workflowDefinition.agents.length > 0 &&
+      !!orchestrationId &&
+      orchestrationSaved &&
+      testRan);
 
   return (
     <PageShell className="search-builder-page">
@@ -77,7 +82,15 @@ export default function SearchBuilderPage() {
               >
                 {step === 1 && <StepDeployment />}
                 {step === 2 && <StepConnectors />}
-                {step === 3 && <StepIndexing />}
+                {step === 3 && (
+                  <StepIndexing
+                    stepNumber={step}
+                    totalSteps={MAX_STEP}
+                    canContinue={canContinue}
+                    onPrevious={prevStep}
+                    onContinue={nextStep}
+                  />
+                )}
                 {step === 4 && <StepAgents />}
                 {step === 5 && <StepOrchestration />}
               </motion.div>
@@ -86,6 +99,7 @@ export default function SearchBuilderPage() {
         </div>
       </div>
 
+      {step !== 3 && (
       <div className="search-builder-page__nav">
         <Button variant="secondary" disabled={step === 1} onClick={prevStep}>
           <ChevronLeftRoundedIcon sx={{ fontSize: 18 }} />
@@ -110,6 +124,7 @@ export default function SearchBuilderPage() {
           </Button>
         )}
       </div>
+      )}
     </PageShell>
   );
 }

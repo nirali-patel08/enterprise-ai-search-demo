@@ -23,14 +23,20 @@ export default function NewAgentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const addCustomAgent = useBuilderStore((s) => s.addCustomAgent);
+  const deploymentType = useBuilderStore((s) => s.deploymentType);
+  const searchIndexes = useBuilderStore((s) => s.searchIndexes);
 
   const initialMode = (searchParams.get("mode") as AgentPlaygroundMode | null) ?? "build";
+  const defaultIndex =
+    searchIndexes.find((i) => i.deployment === deploymentType)?.name ??
+    searchIndexes[0]?.name ??
+    "";
 
   const [values, setValues] = useState<AgentPlaygroundValues>({
     name: "",
     description: "",
     instructions: "",
-    searchIndex: "byod-index",
+    searchIndex: defaultIndex,
     externalUrl: "",
     mode: ["build", "code", "external"].includes(initialMode) ? initialMode : "build",
   });
@@ -58,6 +64,7 @@ export default function NewAgentPage() {
       version: 1,
       type,
       createdOn: new Date().toLocaleString(),
+      deployment: deploymentType,
       description: values.description.trim() || `Custom ${values.mode} agent.`,
       instructions: values.instructions.trim() || undefined,
       searchIndex: type === "prompt" ? values.searchIndex : undefined,

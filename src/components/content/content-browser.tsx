@@ -182,7 +182,7 @@ export function ContentBrowser({
   }
 
   return (
-    <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[minmax(0,1fr)_420px]">
+    <div className="ds-content-browser-layout">
       <div className="ds-content-browser-panel min-w-0">
         <div className="ds-content-browser-panel__toolbar flex flex-wrap items-center gap-2">
           <div className="relative min-w-[160px] flex-1">
@@ -223,20 +223,20 @@ export function ContentBrowser({
         </div>
       </div>
 
-      <div className="ds-content-browser-panel min-w-0">
+      <div className="ds-content-browser-panel ds-content-browser-panel--summary min-w-0">
         <h4 className="ds-content-browser-panel__title">Selection summary</h4>
-        <div className="ds-content-browser-panel__stats">
-          <div className="rounded-lg border border-black/[0.06] bg-white/55 px-2 py-2 text-center">
-            <p className="text-[15px] font-bold leading-none text-black">{folderCount}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-black/45">Folders</p>
+        <div className="ds-selection-stats">
+          <div className="ds-selection-stats__item">
+            <strong>{folderCount}</strong>
+            <span>folders</span>
           </div>
-          <div className="rounded-lg border border-sky-200/80 bg-sky-50/80 px-2 py-2 text-center">
-            <p className="text-[15px] font-bold leading-none text-sky-900">~{estimate.fileCount}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-sky-800/70">Documents</p>
+          <div className="ds-selection-stats__item ds-selection-stats__item--docs">
+            <strong>~{estimate.fileCount}</strong>
+            <span>docs</span>
           </div>
-          <div className="rounded-lg border border-emerald-200/80 bg-emerald-50/80 px-2 py-2 text-center">
-            <p className="text-[15px] font-bold leading-none text-emerald-900">~{estimate.sizeMb}MB</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-800/70">Size</p>
+          <div className="ds-selection-stats__item ds-selection-stats__item--size">
+            <strong>~{estimate.sizeMb}</strong>
+            <span>MB</span>
           </div>
         </div>
 
@@ -244,15 +244,12 @@ export function ContentBrowser({
           <p className="ds-content-browser-panel__paths-label">Selected paths</p>
           <ul className="ds-content-browser-panel__paths-list">
             {selectedPaths.length === 0 ? (
-              <li className="px-2.5 py-3 text-[12px] text-black/40">Nothing selected yet</li>
+              <li className="ds-content-browser-panel__paths-empty">Nothing selected yet</li>
             ) : (
               selectedPaths.map((p) => (
-                <li
-                  key={p}
-                  className="flex items-center gap-1.5 border-b border-black/[0.05] px-2.5 py-1.5 last:border-b-0"
-                >
-                  <InsertDriveFileRoundedIcon className="shrink-0 text-black/30" sx={{ fontSize: 13 }} />
-                  <span className="truncate text-[11px] text-black/65" title={p}>
+                <li key={p} className="ds-content-browser-panel__paths-item">
+                  <InsertDriveFileRoundedIcon className="ds-content-browser-panel__paths-item-icon" sx={{ fontSize: 12 }} />
+                  <span className="ds-content-browser-panel__paths-item-text truncate" title={p}>
                     {p}
                   </span>
                 </li>

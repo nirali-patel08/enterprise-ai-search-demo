@@ -1,9 +1,10 @@
 .agent-playground-page {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 148px);
-  min-height: 520px;
-  max-height: calc(100dvh - 148px);
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  margin-bottom: -1.5rem;
   padding-top: 8px !important;
   padding-bottom: 0 !important;
   overflow: hidden;
@@ -93,8 +94,8 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    padding-top: 20px !important;
-    padding-bottom: 20px !important;
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
   }
 
   &__mode-tabs {

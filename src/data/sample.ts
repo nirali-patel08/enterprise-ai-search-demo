@@ -6,7 +6,7 @@ export type Connector = {
   description: string
   auth: string
   deployment: DeploymentType
-  category: 'Files' | 'Databases' | 'Apps'
+  category: 'Storage' | 'Databases'
 }
 
 export type SavedConnector = {
@@ -25,17 +25,86 @@ export type SavedConnector = {
   lastIndexedAt?: string
 }
 
+export type SearchIndex = {
+  id: string
+  name: string
+  deployment: DeploymentType
+  createdVia: 'builder-indexing' | 'manual'
+  connectorId?: string
+  connectorName?: string
+  documentCount: number
+  sizeBytes?: number
+  status: 'green' | 'yellow' | 'red'
+  createdAt: string
+}
+
+export type WorkflowOrchestrator = {
+  id: string
+  name: string
+  routingInstructions?: string
+}
+
+export type WorkflowAgentNode = {
+  id: string
+  agentId: string
+  name: string
+  description?: string
+}
+
+export type WorkflowDefinition = {
+  orchestrator: WorkflowOrchestrator | null
+  agents: WorkflowAgentNode[]
+}
+
+export const EMPTY_WORKFLOW: WorkflowDefinition = {
+  orchestrator: null,
+  agents: [],
+}
+
+export function buildIndexName(connectorName: string, connectorTypeId: string): string {
+  const slug = connectorName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+  return `structured-${slug || connectorTypeId}`
+}
+
+export function formatIndexSize(bytes?: number): string {
+  if (!bytes) return '—'
+  if (bytes < 1024) return `${bytes}b`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}kb`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}mb`
+}
+
+export function getIndexCreatedViaLabel(createdVia: SearchIndex['createdVia']): string {
+  return createdVia === 'builder-indexing' ? 'AI Search Builder' : 'Manual'
+}
+
 export type MarketplaceAgent = {
   id: string
   name: string
   version: number
   type: 'prompt' | 'workflow' | 'external'
   createdOn: string
+  deployment?: DeploymentType
+  /** @deprecated Use `deployment`. Kept for persisted custom agents. */
+  createdVia?: DeploymentType | 'claude'
   description: string
   model?: string
   instructions?: string
   searchIndex?: string
   selected?: boolean
+}
+
+export function resolveAgentDeployment(agent: Pick<MarketplaceAgent, 'deployment' | 'createdVia'>): DeploymentType {
+  if (agent.deployment) return agent.deployment
+  if (agent.createdVia === 'opensource') return 'opensource'
+  return 'cloud'
+}
+
+export function getAgentDeploymentLabel(deployment: DeploymentType): string {
+  return deployment === 'cloud' ? 'Cloud' : 'Open source'
 }
 
 export type OrchestrationOption = {
@@ -61,23 +130,23 @@ export const STEPS = [
 ] as const
 
 export const CLOUD_CONNECTORS: Connector[] = [
-  { id: 'sharepoint', name: 'Document Library', description: 'Enterprise documents and libraries', auth: 'OAuth / SSO', deployment: 'cloud', category: 'Files' },
-  { id: 'azure-blob', name: 'Object Storage', description: 'Cloud document and file storage', auth: 'Storage account / SAS', deployment: 'cloud', category: 'Files' },
-  { id: 'teams-files', name: 'Team Files', description: 'Files shared in team channels', auth: 'OAuth', deployment: 'cloud', category: 'Files' },
-  { id: 'file-upload', name: 'File Upload', description: 'Manual document upload', auth: 'Local upload', deployment: 'cloud', category: 'Files' },
+  { id: 'sharepoint', name: 'Document Library', description: 'Enterprise documents and libraries', auth: 'OAuth / SSO', deployment: 'cloud', category: 'Storage' },
+  { id: 'azure-blob', name: 'Object Storage', description: 'Cloud document and file storage', auth: 'Storage account / SAS', deployment: 'cloud', category: 'Storage' },
+  { id: 'teams-files', name: 'Team Files', description: 'Files shared in team channels', auth: 'OAuth', deployment: 'cloud', category: 'Storage' },
+  { id: 'file-upload', name: 'File Upload', description: 'Manual document upload', auth: 'Local upload', deployment: 'cloud', category: 'Storage' },
   { id: 'azure-sql', name: 'SQL Database', description: 'Structured enterprise data', auth: 'SQL connection string', deployment: 'cloud', category: 'Databases' },
   { id: 'onelake', name: 'Data Lake', description: 'Unified analytics data lake', auth: 'SSO', deployment: 'cloud', category: 'Databases' },
-  { id: 'rest-api', name: 'REST API', description: 'Custom API endpoints', auth: 'API key / OAuth', deployment: 'cloud', category: 'Apps' },
+  { id: 'rest-api', name: 'REST API', description: 'Custom API endpoints', auth: 'API key / OAuth', deployment: 'cloud', category: 'Storage' },
 ]
 
 export const OPENSOURCE_CONNECTORS: Connector[] = [
-  { id: 'local-fs', name: 'Local File System', description: 'On-premise file folders', auth: 'File path', deployment: 'opensource', category: 'Files' },
-  { id: 's3-minio', name: 'S3 / MinIO', description: 'Object storage', auth: 'Access keys / IAM', deployment: 'opensource', category: 'Files' },
+  { id: 'local-fs', name: 'Local File System', description: 'On-premise file folders', auth: 'File path', deployment: 'opensource', category: 'Storage' },
+  { id: 's3-minio', name: 'S3 / MinIO', description: 'Object storage', auth: 'Access keys / IAM', deployment: 'opensource', category: 'Storage' },
   { id: 'postgresql', name: 'PostgreSQL', description: 'Relational database', auth: 'Connection string', deployment: 'opensource', category: 'Databases' },
   { id: 'mongodb', name: 'MongoDB', description: 'Document database', auth: 'Connection URI', deployment: 'opensource', category: 'Databases' },
-  { id: 'confluence', name: 'Confluence', description: 'Wiki and knowledge pages', auth: 'API token', deployment: 'opensource', category: 'Apps' },
-  { id: 'jira', name: 'Jira', description: 'Issues and project data', auth: 'API token', deployment: 'opensource', category: 'Apps' },
-  { id: 'rest-api-os', name: 'REST API', description: 'Custom API endpoints', auth: 'API key / OAuth', deployment: 'opensource', category: 'Apps' },
+  { id: 'confluence', name: 'Confluence', description: 'Wiki and knowledge pages', auth: 'API token', deployment: 'opensource', category: 'Storage' },
+  { id: 'jira', name: 'Jira', description: 'Issues and project data', auth: 'API token', deployment: 'opensource', category: 'Storage' },
+  { id: 'rest-api-os', name: 'REST API', description: 'Custom API endpoints', auth: 'API key / OAuth', deployment: 'opensource', category: 'Storage' },
 ]
 
 export const CONNECTOR_CONFIG: Record<string, { label: string; value: string }[]> = {
@@ -111,6 +180,21 @@ export const CONNECTOR_CONFIG: Record<string, { label: string; value: string }[]
   jira: [{ label: 'Base URL', value: 'https://contoso.atlassian.net' }],
   'rest-api-os': [{ label: 'Endpoint', value: 'https://api.contoso.com/v1/docs' }],
 }
+
+export const SAMPLE_SEARCH_INDEXES: SearchIndex[] = [
+  {
+    id: 'idx-conn-1',
+    name: 'structured-corp-intranet',
+    deployment: 'cloud',
+    createdVia: 'builder-indexing',
+    connectorId: 'conn-1',
+    connectorName: 'Corp intranet',
+    documentCount: 4820,
+    sizeBytes: 535142,
+    status: 'yellow',
+    createdAt: '7/5/26, 9:00 AM',
+  },
+]
 
 export const SAMPLE_SAVED_CONNECTORS: SavedConnector[] = [
   {
@@ -175,13 +259,13 @@ export const SAMPLE_SAVED_CONNECTORS: SavedConnector[] = [
 ]
 
 export const MARKETPLACE_AGENTS: MarketplaceAgent[] = [
-  { id: 'postgres-agent', name: 'postgres-agent', version: 7, type: 'prompt', createdOn: '7/3/26, 3:17 PM', description: 'Answers questions from PostgreSQL enterprise data.', model: 'gpt-4o-mini', searchIndex: 'postgres-index' },
-  { id: 'sharepoint-agent', name: 'Document-Library-Agent', version: 3, type: 'prompt', createdOn: '7/2/26, 11:00 AM', description: 'Searches document libraries and knowledge pages.', model: 'gpt-4o-mini', searchIndex: 'document-library-index' },
-  { id: 'byod-agent', name: 'BYOD-agent', version: 4, type: 'prompt', createdOn: '6/28/26, 4:45 PM', description: 'Bring-your-own-data search across uploaded files.', model: 'gpt-4o-mini', searchIndex: 'byod-index' },
-  { id: 'engineering-table-agent', name: 'Engineering-Table-Agent', version: 5, type: 'prompt', createdOn: '6/25/26, 9:20 AM', description: 'Answers questions by interpreting engineering tables and specifications.', model: 'gpt-4o-mini', searchIndex: 'engineering-tables' },
-  { id: 'engineering-drawing-agent', name: 'Engineering-Drawing-Agent', version: 4, type: 'prompt', createdOn: '6/29/26, 4:01 PM', description: 'Answers questions related to engineering drawings, diagrams, and assembly views.', model: 'gpt-4o-mini', searchIndex: 'byod-index', instructions: 'You are an Engineering Drawing and Diagram Expert. Answer questions related to engineering drawings, figures, diagrams, and layouts.' },
-  { id: 'document-router-agent', name: 'Document-Router-Agent', version: 2, type: 'workflow', createdOn: '6/20/26, 1:10 PM', description: 'Routes document queries to the right specialized agent.', model: 'gpt-4o' },
-  { id: 'technical-docs-agent', name: 'Technical-Documentation-Agent', version: 3, type: 'prompt', createdOn: '6/18/26, 8:55 AM', description: 'Handles technical documentation and SOP queries.', model: 'gpt-4o-mini', searchIndex: 'tech-docs-index' },
+  { id: 'postgres-agent', name: 'postgres-agent', version: 7, type: 'prompt', createdOn: '7/3/26, 3:17 PM', deployment: 'opensource', description: 'Answers questions from PostgreSQL enterprise data.', model: 'gpt-4o-mini', searchIndex: 'postgres-index' },
+  { id: 'sharepoint-agent', name: 'Document-Library-Agent', version: 3, type: 'prompt', createdOn: '7/2/26, 11:00 AM', deployment: 'cloud', description: 'Searches document libraries and knowledge pages.', model: 'gpt-4o-mini', searchIndex: 'document-library-index' },
+  { id: 'byod-agent', name: 'BYOD-agent', version: 4, type: 'prompt', createdOn: '6/28/26, 4:45 PM', deployment: 'cloud', description: 'Bring-your-own-data search across uploaded files.', model: 'gpt-4o-mini', searchIndex: 'byod-index' },
+  { id: 'engineering-table-agent', name: 'Engineering-Table-Agent', version: 5, type: 'prompt', createdOn: '6/25/26, 9:20 AM', deployment: 'opensource', description: 'Answers questions by interpreting engineering tables and specifications.', model: 'gpt-4o-mini', searchIndex: 'engineering-tables' },
+  { id: 'engineering-drawing-agent', name: 'Engineering-Drawing-Agent', version: 4, type: 'prompt', createdOn: '6/29/26, 4:01 PM', deployment: 'cloud', description: 'Answers questions related to engineering drawings, diagrams, and assembly views.', model: 'gpt-4o-mini', searchIndex: 'byod-index', instructions: 'You are an Engineering Drawing and Diagram Expert. Answer questions related to engineering drawings, figures, diagrams, and layouts.' },
+  { id: 'document-router-agent', name: 'Document-Router-Agent', version: 2, type: 'workflow', createdOn: '6/20/26, 1:10 PM', deployment: 'cloud', description: 'Routes document queries to the right specialized agent.', model: 'gpt-4o' },
+  { id: 'technical-docs-agent', name: 'Technical-Documentation-Agent', version: 3, type: 'prompt', createdOn: '6/18/26, 8:55 AM', deployment: 'opensource', description: 'Handles technical documentation and SOP queries.', model: 'gpt-4o-mini', searchIndex: 'tech-docs-index' },
 ]
 
 export const ORCHESTRATION_OPTIONS: OrchestrationOption[] = [

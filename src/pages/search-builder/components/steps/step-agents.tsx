@@ -1,100 +1,163 @@
+import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import SmartToyRoundedIcon from "@mui/icons-material/SmartToyRounded";
+import AccountTreeRoundedIcon from "@mui/icons-material/AccountTreeRounded";
+import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
+import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
+import CodeOutlinedIcon from "@mui/icons-material/CodeOutlined";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAgents } from "@/hooks/useAgents";
+import { useAgentsForDeployment } from "@/hooks/useAgents";
+import {
+  getAgentDeploymentLabel,
+  resolveAgentDeployment,
+  type DeploymentType,
+  type MarketplaceAgent,
+} from "@/data/sample";
 import { useBuilderStore } from "@/store/builder-store";
 import { WizardPanel } from "../wizard-ui";
 
-const CREATE_OPTIONS = [
-  { id: "build", label: "Build an agent" },
-  { id: "code", label: "Code an agent" },
-  { id: "external", label: "Link external agent" },
-] as const;
+const AGENT_TYPE_META = {
+  prompt: {
+    label: "Prompt",
+    tagClass: "ds-tag--blue",
+    icon: SmartToyRoundedIcon,
+  },
+  workflow: {
+    label: "Workflow",
+    tagClass: "ds-tag--purple",
+    icon: AccountTreeRoundedIcon,
+  },
+  external: {
+    label: "External",
+    tagClass: "ds-tag--pink",
+    icon: LinkRoundedIcon,
+  },
+} as const;
+
+function DeploymentTag({ deployment }: { deployment: DeploymentType }) {
+  const Icon = deployment === "cloud" ? CloudOutlinedIcon : CodeOutlinedIcon;
+
+  return (
+    <span
+      className={cn(
+        "ds-tag dashboard-agents-table__deployment dashboard-agents-table__tag",
+        deployment === "cloud"
+          ? "dashboard-agents-table__tag--cloud"
+          : "dashboard-agents-table__tag--opensource",
+      )}
+    >
+      <Icon sx={{ fontSize: 13 }} />
+      {getAgentDeploymentLabel(deployment)}
+    </span>
+  );
+}
 
 export const StepAgents = () => {
-  const agents = useAgents();
-  const selectedAgentIds = useBuilderStore((s) => s.selectedAgentIds);
-  const toggleAgent = useBuilderStore((s) => s.toggleAgent);
+  const navigate = useNavigate();
+  const deploymentType = useBuilderStore((s) => s.deploymentType);
+  const agents = useAgentsForDeployment(deploymentType);
+  const deploymentLabel = getAgentDeploymentLabel(deploymentType);
 
   return (
     <section className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="ds-field-label">Create options:</span>
-          {CREATE_OPTIONS.map((opt, i) => {
-            const tone = (["blue", "purple", "pink"] as const)[i % 3];
-            return (
-              <Link key={opt.id} to={`/agents/new?mode=${opt.id}`}>
-                <span className={cn("ds-tag cursor-pointer transition hover:opacity-80", `ds-tag--${tone}`)}>
-                  {opt.label}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm">Browse templates</Button>
-          <Link to="/agents/new">
-            <Button variant="primary" size="sm">
-              <AddRoundedIcon sx={{ fontSize: 16 }} />
-              New agent
-            </Button>
-          </Link>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <Link to="/agents/new">
+          <Button variant="primary" size="sm">
+            <AddRoundedIcon sx={{ fontSize: 16 }} />
+            New agent
+          </Button>
+        </Link>
       </div>
 
-      <WizardPanel className="overflow-hidden p-0" bodyClassName="p-0">
-        <div className="overflow-x-auto">
-          <table className="ds-table ds-table--defined w-full min-w-[640px]">
-            <thead>
-              <tr>
-                <th>Select</th>
-                <th>Name</th>
-                <th>Version</th>
-                <th>Type</th>
-                <th>Created on</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {agents.map((agent) => {
-                const selected = selectedAgentIds.includes(agent.id);
-                return (
-                  <tr key={agent.id} className={selected ? "ds-selected-row" : undefined}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => toggleAgent(agent.id)}
-                        aria-label={`Select ${agent.name}`}
-                        className="ds-checkbox"
-                      />
-                    </td>
-                    <td>
-                      <Link to={`/agents/${agent.id}`} className="font-medium text-black hover:underline">
-                        {agent.name}
-                      </Link>
-                      {agent.id.startsWith("custom-") && (
-                        <Badge variant="info" className="ml-2">Custom</Badge>
-                      )}
-                    </td>
-                    <td><Badge variant="outline">{agent.version}</Badge></td>
-                    <td>{agent.type}</td>
-                    <td className="text-black/60">{agent.createdOn}</td>
-                    <td className="max-w-xs truncate text-black/60">{agent.description || "—"}</td>
+      <WizardPanel className="overflow-hidden !rounded-[14px] !p-0" bodyClassName="p-0">
+        {agents.length === 0 ? (
+          <div className="dashboard-agents-table__empty route-empty">
+            <span className="dashboard-agents-table__empty-icon" aria-hidden>
+              <SmartToyRoundedIcon sx={{ fontSize: 24 }} />
+            </span>
+            <p className="dashboard-agents-table__empty-title">No {deploymentLabel.toLowerCase()} agents</p>
+            <p className="dashboard-agents-table__empty-copy">
+              Create an agent with <strong>New agent</strong> to use in orchestration.
+            </p>
+            <Link to="/agents/new" className="dashboard-agents-table__footer-link mt-4">
+              Create agent
+            </Link>
+          </div>
+        ) : (
+          <div className="dashboard-agents-table">
+            <div className="dashboard-agents-table__scroll">
+              <table className="ds-table ds-table--defined dashboard-agents-table__table w-full">
+                <thead>
+                  <tr>
+                    <th>Agent</th>
+                    <th>Type</th>
+                    <th>Deployment</th>
+                    <th>Description</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {agents.map((agent) => (
+                    <AgentRow key={agent.id} agent={agent} onOpen={() => navigate(`/agents/${agent.id}`)} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="dashboard-agents-table__footer">
+              <span>
+                Showing <strong>1–{agents.length}</strong> of <strong>{agents.length}</strong> agents
+              </span>
+            </div>
+          </div>
+        )}
       </WizardPanel>
-
-      <p className="text-[13px] text-black/60">
-        <strong className="text-black">{selectedAgentIds.length}</strong> agent(s) selected.
-      </p>
     </section>
   );
 };
+
+function AgentRow({ agent, onOpen }: { agent: MarketplaceAgent; onOpen: () => void }) {
+  const typeMeta = AGENT_TYPE_META[agent.type];
+  const TypeIcon = typeMeta.icon;
+  const deployment = resolveAgentDeployment(agent);
+
+  return (
+    <tr onClick={onOpen}>
+      <td>
+        <div className="dashboard-agents-table__agent">
+          <span
+            className={cn(
+              "dashboard-agents-table__avatar",
+              `dashboard-agents-table__avatar--${agent.type}`,
+            )}
+            aria-hidden
+          >
+            <TypeIcon sx={{ fontSize: 18 }} />
+          </span>
+          <div className="dashboard-agents-table__agent-text">
+            <span className="dashboard-agents-table__name">{agent.name}</span>
+            <div className="dashboard-agents-table__meta">
+              {agent.id.startsWith("custom-") && (
+                <Badge variant="info" size="sm">
+                  Custom
+                </Badge>
+              )}
+            </div>
+          </div>
+          <ChevronRightRoundedIcon className="dashboard-agents-table__chevron" />
+        </div>
+      </td>
+      <td>
+        <span className={cn("ds-tag", typeMeta.tagClass)}>{typeMeta.label}</span>
+      </td>
+      <td>
+        <DeploymentTag deployment={deployment} />
+      </td>
+      <td>
+        <p className="dashboard-agents-table__description truncate">{agent.description || "—"}</p>
+      </td>
+    </tr>
+  );
+}

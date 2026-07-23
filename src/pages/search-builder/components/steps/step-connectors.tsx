@@ -8,7 +8,6 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
-import AppsOutlinedIcon from "@mui/icons-material/AppsOutlined";
 import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
 import CodeOutlinedIcon from "@mui/icons-material/CodeOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
@@ -34,13 +33,12 @@ import { toast } from "@/lib/toast";
 import { useBuilderStore } from "@/store/builder-store";
 import { Field, TextInput } from "../wizard-ui";
 
-const CATEGORIES = ["Files", "Databases", "Apps"] as const;
+const CATEGORIES = ["Storage", "Databases"] as const;
 type Category = (typeof CATEGORIES)[number];
 
 const categoryIcon = {
-  Files: <FolderOutlinedIcon sx={{ fontSize: 15 }} />,
-  Databases: <StorageOutlinedIcon sx={{ fontSize: 15 }} />,
-  Apps: <AppsOutlinedIcon sx={{ fontSize: 15 }} />,
+  Storage: <StorageOutlinedIcon sx={{ fontSize: 15 }} />,
+  Databases: <DatasetOutlinedIcon sx={{ fontSize: 15 }} />,
 };
 
 function connectorIcon(id: string, size = 22) {
@@ -81,7 +79,6 @@ function connectorIcon(id: string, size = 22) {
 function iconTone(id: string, category: Category) {
   if (id.includes("rest")) return "ds-source-tile__icon--api";
   if (category === "Databases") return "ds-source-tile__icon--db";
-  if (category === "Apps") return "ds-source-tile__icon--apps";
   return "ds-source-tile__icon--files";
 }
 
@@ -104,14 +101,14 @@ export const StepConnectors = () => {
     items: available.filter((c) => c.category === cat),
   })).filter((g) => g.items.length > 0);
 
-  const [activeCat, setActiveCat] = useState<Category>(grouped[0]?.cat ?? "Files");
+  const [activeCat, setActiveCat] = useState<Category>(grouped[0]?.cat ?? "Storage");
 
   useEffect(() => {
     setActiveCat((prev) => {
       const cats = CATEGORIES.filter((cat) =>
         getConnectorsForDeployment(deploymentType).some((c) => c.category === cat),
       );
-      return cats.includes(prev) ? prev : (cats[0] ?? "Files");
+      return cats.includes(prev) ? prev : (cats[0] ?? "Storage");
     });
   }, [deploymentType]);
 
